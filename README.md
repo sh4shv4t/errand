@@ -19,6 +19,7 @@ A frontier model (a **Sender**) hits a sub-problem: an olympiad inequality, a fu
 
 - [Research findings and design proposal](docs/RESEARCH.md)
 - [Brand guide and vocabulary](docs/BRANDING.md)
+- [PayPal AI Hackathon 2026 strategy](Paypal_hackathon.md)
 
 ## Status
 
