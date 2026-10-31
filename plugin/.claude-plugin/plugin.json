@@ -1,0 +1,8 @@
+{
+  "name": "errand",
+  "version": "0.1.0",
+  "description": "Delegate math and code sub-tasks to cheaper specialist models through Errand, paid via PayPal only when verified.",
+  "author": { "name": "Shashvat Singh" },
+  "homepage": "https://github.com/sh4shv4t/errand",
+  "keywords": ["delegation", "routing", "paypal", "mcp", "agents"]
+}

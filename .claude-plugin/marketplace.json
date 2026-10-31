@@ -1,0 +1,11 @@
+{
+  "name": "errand",
+  "owner": { "name": "Shashvat Singh" },
+  "plugins": [
+    {
+      "name": "errand",
+      "source": "./plugin",
+      "description": "Delegate math and code sub-tasks to cheaper specialist models, settled through PayPal."
+    }
+  ]
+}
