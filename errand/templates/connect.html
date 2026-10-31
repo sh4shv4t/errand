@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Connect an agent · Errand{% endblock %}
+{% block page %}connect{% endblock %}
+{% block content %}
+<h1>Connect your agent</h1>
+<p class="sub">Errand works with any MCP client (Claude, Cursor, VS Code Copilot, Windsurf, Gemini CLI, Codex...) and with any
+agent framework through plain HTTP or the Python SDK. Pick the fastest path for you.</p>
+
+<div class="card">
+  <h2>Your key</h2>
+  {% if demo_key %}
+    <p class="muted small">Demo mode: this is {{ acct.name }}'s Sender key. It is already filled into every snippet below.</p>
+    <pre id="k">{{ demo_key }}</pre><button class="ghost" data-copy="#k">Copy key</button>
+  {% elif acct %}
+    <p class="muted small">Use the key you saved at signup in place of <code>erk_YOUR_KEY</code>.</p>
+  {% else %}
+    <p class="muted small"><a href="/signup?kind=sender">Create a Sender account</a> to get a key, or <a href="/login">try a demo account</a>.</p>
+  {% endif %}
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <h2>Option 1: one command</h2>
+    <p class="muted small">Detects the MCP clients on your machine and adds Errand to each one (backs up their config first).</p>
+    <pre id="c1">errand connect all{% if not demo_key %} --key erk_YOUR_KEY{% endif %}</pre>
+    <button class="ghost" data-copy="#c1">Copy</button>
+    <p class="muted small" style="margin-top:12px">Or one client: <code>errand connect cursor</code>. Options: claude-desktop, claude-code, cursor, vscode, windsurf, gemini, codex. See everything with <code>errand connect print</code>.</p>
+  </div>
+  <div class="card">
+    <h2>Option 2: just a URL</h2>
+    <p class="muted small">Errand serves MCP over HTTP. Any client that supports remote MCP servers needs only this:</p>
+    <pre id="c2">URL:    {{ base_url }}/mcp
+Header: Authorization: Bearer {{ demo_key or 'erk_YOUR_KEY' }}</pre>
+    <button class="ghost" data-copy="#c2">Copy</button>
+    <p class="muted small" style="margin-top:12px">Client only accepts a URL? Use <code>{{ base_url }}/mcp?key=...</code> (keep that URL private).</p>
+  </div>
+</div>
+
+<div class="card section">
+  <h2>Copy-paste config per client</h2>
+  <div class="tabs" id="client-tabs">
+    {% for title in snippets %}<button type="button" data-i="{{ loop.index0 }}" class="{{ 'active' if loop.first }}">{{ title.split(' (')[0] }}</button>{% endfor %}
+  </div>
+  {% for title, text in snippets.items() %}
+  <div class="client-snippet" data-i="{{ loop.index0 }}" {% if not loop.first %}hidden{% endif %}>
+    <p class="muted small">{{ title }}</p>
+    <pre id="s{{ loop.index0 }}">{{ text }}</pre>
+    <button class="ghost" data-copy="#s{{ loop.index0 }}">Copy</button>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <h2>No MCP? Use any framework</h2>
+    <p class="muted small">Python SDK, with tool schemas ready for OpenAI-style or Anthropic function calling:</p>
+<pre>from errand.client import Errand
+e = Errand(api_key="{{ demo_key or 'erk_YOUR_KEY' }}", base_url="{{ base_url }}")
+e.send_math("What is 17 * 23?")
+
+tools = e.tools("openai")          # or "anthropic"
+result = e.run_tool(name, args)    # execute the model's tool call</pre>
+    <p class="muted small">Schemas over HTTP: <a href="/v1/tools?format=openai">/v1/tools?format=openai</a> · <a href="/v1/tools?format=anthropic">anthropic</a>. Full agent example: <code>examples/openai_agent.py</code> (works with Ollama, OpenAI, Groq...).</p>
+  </div>
+  <div class="card">
+    <h2>Plain HTTP</h2>
+<pre>curl -X POST {{ base_url }}/v1/errands \
+  -H "Authorization: Bearer {{ demo_key or 'erk_YOUR_KEY' }}" \
+  -H "Content-Type: application/json" \
+  -d '{"lane":"math.final-answer","payload":{"problem":"What is 17 * 23?"}}'</pre>
+    <h2 style="margin-top:16px">Tools your agent gets</h2>
+    <ul class="small">
+      <li><code>list_lanes</code>, <code>recommend_runner</code>: what can be delegated, to whom, at what cost</li>
+      <li><code>send_errand</code>: delegate and get a verified answer with a cost receipt</li>
+      <li><code>give_feedback</code>, <code>wallet</code></li>
+      <li><code>request_top_up</code>: returns a PayPal link that a human approves</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}
