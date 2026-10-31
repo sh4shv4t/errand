@@ -1,0 +1,15 @@
+# One-click deploy on Render (Blueprint). Free plan storage is ephemeral: demo data re-seeds on each deploy.
+services:
+  - type: web
+    name: errand
+    runtime: docker
+    plan: free
+    healthCheckPath: /v1/config
+    envVars:
+      - key: ERRAND_DEMO
+        value: "1"
+      # ERRAND_BASE_URL is optional here: Render's RENDER_EXTERNAL_URL is picked up automatically
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false

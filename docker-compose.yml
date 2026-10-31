@@ -1,0 +1,12 @@
+services:
+  errand:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - errand-data:/data
+volumes:
+  errand-data:
