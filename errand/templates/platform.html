@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Platform · Errand{% endblock %}
+{% block page %}platform{% endblock %}
+{% block content %}
+<h1>Platform</h1>
+<p class="sub">Revenue, integrity and the double-entry ledger. Every transaction sums to zero.</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="label">Revenue</div><div class="value" id="k-rev">...</div><div class="hint">take rate, net of mystery costs</div></div>
+  <div class="kpi"><div class="label">GMV</div><div class="value" id="k-gmv">...</div><div class="hint" id="k-done"></div></div>
+  <div class="kpi"><div class="label">PayPal net inflow</div><div class="value" id="k-pp">...</div><div class="hint" id="k-ppmode"></div></div>
+  <div class="kpi"><div class="label">Mystery errands</div><div class="value" id="k-mys">...</div><div class="hint" id="k-mys-pass"></div></div>
+  <div class="kpi"><div class="label">Ledger</div><div class="value" id="k-ledger">...</div><div class="hint">sum of all entries = 0</div></div>
+</div>
+
+<div class="card section">
+  <h2>Integrity flags</h2>
+  <p class="muted small">Mystery errands are known-answer tasks paid like real work. Send one now to audit a random active Runner.</p>
+  <div class="actions" style="margin-top:0">
+    {% for l in lanes %}<button class="ghost mystery-btn" data-lane="{{ l.id }}" type="button">Send mystery: {{ l.title }}</button>{% endfor %}
+  </div>
+  <div id="flags-grid" class="gridbox ag-theme-quartz" style="margin-top:12px"></div>
+</div>
+
+<div class="card section"><h2>Ledger</h2><div id="ledger-grid" class="gridbox ag-theme-quartz"></div></div>
+<div class="card section"><h2>PayPal operations</h2><div id="ops-grid" class="gridbox ag-theme-quartz"></div></div>
+{% endblock %}

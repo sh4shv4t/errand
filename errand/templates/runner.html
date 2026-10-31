@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Runner dashboard · Errand{% endblock %}
+{% block page %}runner{% endblock %}
+{% block content %}
+<h1>{{ acct.name }}</h1>
+<p class="sub">Runner dashboard: register your model, pass the exam, earn per verified errand, withdraw through PayPal.</p>
+
+<div id="status-banner"></div>
+
+<div class="kpis">
+  <div class="kpi"><div class="label">Status</div><div class="value" id="k-status">...</div><div class="hint" id="k-model"></div></div>
+  <div class="kpi"><div class="label">Earnings</div><div class="value" id="k-earn">...</div><div class="hint">available to withdraw</div></div>
+  <div class="kpi"><div class="label">Bond</div><div class="value" id="k-bond">...</div><div class="hint">slashable stake</div></div>
+  <div class="kpi"><div class="label">Errands served</div><div class="value" id="k-served">...</div><div class="hint" id="k-gross"></div></div>
+  <div class="kpi"><div class="label">Best rating</div><div class="value" id="k-rating">...</div><div class="hint">0 to 100</div></div>
+</div>
+
+<div class="card section">
+  <h2>Ratings by lane</h2>
+  <div id="lanes-grid" class="gridbox ag-theme-quartz"></div>
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <h2>Your model</h2>
+    <p class="muted small">Errand calls your model for each errand. Saving sends it back through the onboarding exam.</p>
+    <form id="profile-form">
+      <label for="model">Declared model</label><input id="model" required placeholder="qwen2.5-math-1.5b">
+      <label for="kind">Endpoint type</label>
+      <select id="kind">
+        <option value="openai">OpenAI-compatible (Ollama, vLLM, Groq, OpenRouter...)</option>
+        <option value="webhook">Webhook (Errand POSTs the errand to your URL)</option>
+        {% if demo %}<option value="simulated">Simulated (demo only)</option>{% endif %}
+      </select>
+      <div id="cfg-openai">
+        <div class="row">
+          <div><label for="base_url">Base URL</label><input id="base_url" placeholder="http://localhost:11434/v1"></div>
+          <div><label for="cfg_model">Model name</label><input id="cfg_model" placeholder="qwen2.5:1.5b"></div>
+        </div>
+        <label for="api_key_env">API key env var on the gateway (optional)</label><input id="api_key_env" placeholder="GROQ_API_KEY">
+      </div>
+      <div id="cfg-webhook" hidden><label for="url">Webhook URL</label><input id="url" placeholder="https://my-runner.example.com/errand"></div>
+      <div id="cfg-sim" hidden><label for="sim_json">Simulation config (JSON)</label><textarea id="sim_json">{"accuracy": {"math.final-answer": 0.9}, "latency_ms": [200, 500]}</textarea></div>
+      <label>Lanes and price per errand (USD)</label>
+      {% for l in lanes %}
+      <div class="row" style="align-items:center">
+        <div style="flex:2"><label style="font-weight:500;margin:0"><input type="checkbox" class="lane-on" value="{{ l.id }}" style="width:auto"> {{ l.title }} <span class="mono muted small">{{ l.id }}</span></label></div>
+        <div><input type="number" class="lane-price" data-lane="{{ l.id }}" step="0.0001" min="0.0001" placeholder="0.0010"></div>
+      </div>
+      {% endfor %}
+      <div class="actions"><button class="primary" type="submit">Save and take the exam</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Bond</h2>
+    <p class="muted small">Post at least $<span id="min-bond">1.00</span> before you get traffic. It is slashed if you are caught serving a different model than the one that passed the exam.</p>
+    <div class="row">
+      <div><label for="bond-amt">Amount (USD)</label><input id="bond-amt" type="number" min="1" max="500" step="1" value="2"></div>
+      <div style="flex:0"><button class="paypal" id="bond-btn" type="button">Post bond with PayPal</button></div>
+    </div>
+    <h2 style="margin-top:20px">Withdraw earnings</h2>
+    <p class="muted small">Sent with PayPal Payouts to your PayPal email.</p>
+    <div class="row">
+      <div><label for="pp-email">PayPal email</label><input id="pp-email" type="email" placeholder="you@example.com"></div>
+      <div style="flex:0"><button class="ghost" id="email-btn" type="button">Save email</button></div>
+    </div>
+    <div class="row">
+      <div><label for="wd-amt">Amount (USD)</label><input id="wd-amt" type="number" min="0.01" step="0.01"></div>
+      <div style="flex:0"><button id="wd-btn" type="button">Withdraw</button></div>
+    </div>
+    <h2 style="margin-top:20px">Training Receipts</h2>
+    <p class="muted small">Verified input/output pairs from Senders who opted in to share them. Use them to fine-tune your specialist.</p>
+    <button class="ghost" id="receipts-btn" type="button">Download receipts (JSON)</button>
+  </div>
+</div>
+
+<div class="card section">
+  <h2>Errands you served</h2>
+  <p class="muted small">You see the task, never the Sender. Mystery errands look exactly like real ones.</p>
+  <div id="jobs-grid" class="gridbox ag-theme-quartz"></div>
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card"><h2>Integrity flags</h2><div id="flags"></div></div>
+  <div class="card"><h2>PayPal activity</h2><div id="ops-grid" class="gridbox ag-theme-quartz"></div></div>
+</div>
+{% endblock %}

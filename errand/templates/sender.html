@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Sender dashboard · Errand{% endblock %}
+{% block page %}sender{% endblock %}
+{% block content %}
+<h1>{{ acct.name }}</h1>
+<p class="sub">Sender dashboard: delegate errands, fund your wallet through PayPal, and watch what you save.</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="label">Wallet</div><div class="value" id="k-wallet">...</div><div class="hint">spendable balance</div></div>
+  <div class="kpi"><div class="label">Spent (30d)</div><div class="value" id="k-spent">...</div><div class="hint" id="k-errands"></div></div>
+  <div class="kpi"><div class="label">Saved vs frontier</div><div class="value" id="k-saved">...</div><div class="hint">vs doing it with your own big model</div></div>
+  <div class="kpi"><div class="label">Tier</div><div class="value" id="k-tier">...</div><div class="hint" id="k-tier-next"></div></div>
+  <div class="kpi"><div class="label">Data dividends</div><div class="value" id="k-div">...</div><div class="hint">earned by sharing Receipts</div></div>
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <h2>Send an errand</h2>
+    <form id="errand-form">
+      <div class="row">
+        <div><label for="lane">Lane</label>
+          <select id="lane" name="lane">{% for l in lanes %}<option value="{{ l.id }}">{{ l.title }}</option>{% endfor %}</select></div>
+        <div><label for="preset">Tradeoff</label>
+          <select id="preset" name="preset"><option value="">my default</option><option>balanced</option><option>cheapest</option><option>fastest</option><option>best</option></select></div>
+        <div><label for="budget">Budget (USD)</label><input id="budget" name="budget" type="number" step="0.0001" min="0.0001" placeholder="cap"></div>
+      </div>
+      <div id="fields-math">
+        <label for="problem">Problem</label><textarea id="problem" placeholder="A train travels 216 km in 12 hours..."></textarea>
+        <label for="expected">Expected answer (optional; enables verification)</label><input id="expected" placeholder="e.g. 18">
+      </div>
+      <div id="fields-code" hidden>
+        <div class="row">
+          <div><label for="function_name">Function name</label><input id="function_name" placeholder="is_palindrome"></div>
+        </div>
+        <label for="spec">Specification</label><textarea id="spec"></textarea>
+        <label for="tests">Tests (Python asserts)</label><textarea id="tests"></textarea>
+      </div>
+      <div class="actions">
+        <button class="primary" type="submit" id="send-btn">Send errand</button>
+        <button class="ghost" type="button" id="example-btn">Fill an example</button>
+        <button class="ghost" type="button" id="bounty-btn" title="Fund this errand with a PayPal authorization: captured only if verified">Post as PayPal bounty...</button>
+      </div>
+    </form>
+    <div id="result" class="result"></div>
+  </div>
+
+  <div class="card">
+    <h2>Who would get it?</h2>
+    <p class="muted small">Live recommendation for the selected lane and tradeoff. This is what your agent sees from <code>recommend_runner</code>.</p>
+    <div id="rec-grid" class="gridbox ag-theme-quartz"></div>
+    <h2 style="margin-top:20px">Fund your wallet</h2>
+    <p class="muted small">Top up through PayPal checkout (Orders v2, CAPTURE). Agents can request a top-up too, but a human always approves it here.</p>
+    <div class="row">
+      <div><label for="topup-amt">Amount (USD)</label><input id="topup-amt" type="number" min="1" max="500" step="1" value="5"></div>
+      <div style="flex:0"><button class="paypal" id="topup-btn" type="button">Pay with PayPal</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="card section">
+  <h2>Your errands</h2>
+  <div id="errands-grid" class="gridbox ag-theme-quartz"></div>
+</div>
+
+<div class="grid cols-2 section">
+  <div class="card">
+    <h2>Spending mandate and preferences</h2>
+    <p class="muted small">Hard limits your agent cannot exceed, enforced by Errand on every errand.</p>
+    <form id="settings-form">
+      <div class="row">
+        <div><label for="cap1">Per-errand cap (USD)</label><input id="cap1" type="number" step="0.001" min="0.001"></div>
+        <div><label for="capd">Daily cap (USD)</label><input id="capd" type="number" step="0.01" min="0.01"></div>
+      </div>
+      <div class="row">
+        <div><label for="defpreset">Default tradeoff</label>
+          <select id="defpreset"><option>balanced</option><option>cheapest</option><option>fastest</option><option>best</option></select></div>
+        <div><label for="consent">Receipts sharing</label>
+          <select id="consent">
+            <option value="0">0: Private (default)</option>
+            <option value="1">1: Eval-only (improves ratings)</option>
+            <option value="2">2: Lane pool, earns a dividend</option>
+            <option value="3">3: Direct to the Runner that served it</option>
+          </select></div>
+      </div>
+      <div class="actions"><button type="submit">Save</button></div>
+    </form>
+  </div>
+  <div class="card">
+    <h2>PayPal activity</h2>
+    <div id="ops-grid" class="gridbox ag-theme-quartz"></div>
+  </div>
+</div>
+{% endblock %}
