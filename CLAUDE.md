@@ -23,6 +23,19 @@ Errand (unit of work), Sender (consumer), Runner (provider), Lane (task category
 - Centralized evaluation first; keep interfaces open to decentralizing later.
 - Expose Errand as an MCP server (`send_errand`, `recommend_runner`) so models can delegate natively.
 
+## Code map (MVP, branch feat/end-to-end-mvp)
+
+- `errand/service.py`: errand lifecycle, escrow, PayPal flows, read models. Start here.
+- `errand/integrity.py`: onboarding exam, mystery errands, swap detection and slashing.
+- `errand/dispatch.py`, `errand/ratings.py`, `errand/tiers.py`, `errand/lanes.py`, `errand/taskbank.py`.
+- `errand/ledger.py`: double-entry ledger; amounts are integer micro-dollars.
+- `errand/paypal.py`: Orders v2 / Authorizations / Payouts, with a mock twin when no sandbox keys are set.
+- `errand/app.py`: REST API (`/v1`), PayPal return handlers, dashboard pages, remote MCP at `/mcp`.
+- `errand/mcp_server.py` (stdio + HTTP), `errand/connect.py` (`errand connect`), `errand/client.py` (SDK), `errand/tools.py` (schemas).
+- `errand/templates`, `errand/static`: server-rendered dashboard, AG Grid from CDN, no build step.
+- `plugin/` + `.claude-plugin/marketplace.json`: Claude Code plugin.
+- Tests: `pytest` (core, API, integrations). Demo: `errand demo`.
+
 ## Conventions
 
 - Commit messages use Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`.
