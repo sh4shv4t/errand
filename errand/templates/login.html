@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Log in · Errand{% endblock %}
+{% block page %}login{% endblock %}
+{% block content %}
+<div class="grid cols-2">
+  {% if demo_accounts %}
+  <div class="card">
+    <h2>Demo accounts</h2>
+    <p class="muted small">One click, no password. Alan is a Sender agent; the rest are Runners. Shady is the cheater.</p>
+    <div class="demo-list">
+      {% for a in demo_accounts %}
+      <form method="post" action="/login/demo/{{ a.id }}">
+        <button type="submit"><span>{{ a.name }}</span><span class="badge">{{ a.kind }}</span></button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  <div class="card">
+    <h2>Log in with an API key</h2>
+    <form method="post" action="/login">
+      <label for="api_key">API key</label>
+      <input id="api_key" name="api_key" placeholder="erk_..." autocomplete="off" required>
+      <div class="actions"><button class="primary" type="submit">Log in</button><a class="btn ghost" href="/signup">Create an account</a></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

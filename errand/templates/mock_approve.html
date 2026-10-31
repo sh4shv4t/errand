@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Approve payment (mock) · Errand{% endblock %}
+{% block page %}mock{% endblock %}
+{% block content %}
+<div class="card" style="max-width:520px; margin: 24px auto">
+  <span class="badge warn">Local simulation</span>
+  <h1 style="margin-top:8px">Approve ${{ '%.2f' % (op.amount / 1000000) }}</h1>
+  <p class="sub">PayPal sandbox keys are not configured, so Errand is simulating the PayPal approval step.
+     With <code>PAYPAL_CLIENT_ID</code> and <code>PAYPAL_CLIENT_SECRET</code> set, this page is the real PayPal sandbox checkout.</p>
+  <div class="receipt">
+    <div><span>Purpose</span><span>{{ op.purpose }}</span></div>
+    <div><span>Intent</span><span>{{ 'AUTHORIZE (escrow)' if op.purpose == 'bounty' else 'CAPTURE' }}</span></div>
+    <div><span>Order</span><span>{{ token }}</span></div>
+  </div>
+  <form method="post" action="/paypal/mock/approve" class="actions">
+    <input type="hidden" name="token" value="{{ token }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="paypal" name="decision" value="approve" type="submit">Approve payment</button>
+    <button class="ghost" name="decision" value="cancel" type="submit">Cancel</button>
+  </form>
+</div>
+{% endblock %}
