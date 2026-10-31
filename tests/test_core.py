@@ -1,0 +1,241 @@
+import random
+
+import pytest
+
+from errand import db, dispatch, integrity, lanes, ledger, ratings, service, taskbank
+from errand.db import PAYPAL_ID, PLATFORM_ID
+
+MATH, CODE = "math.final-answer", "code.python.tests"
+
+
+def fund(conn, account_id, bucket, usd):
+    with db.tx(conn):
+        ledger.move(conn, "test credit", (PAYPAL_ID, "world"), (account_id, bucket), int(usd * 1e6))
+
+
+def make_sender(conn, usd=1.0, **settings):
+    acct, _ = service.create_account(conn, "sender", "Tester")
+    if settings:
+        service.update_settings(conn, acct["id"], settings)
+    if usd:
+        fund(conn, acct["id"], "wallet", usd)
+    return service.get_account(conn, acct["id"])
+
+
+def make_runner(conn, name, lanes_prices, cfg, bond=2.0):
+    acct, _ = service.create_account(conn, "runner", name)
+    fund(conn, acct["id"], "bond", bond)
+    service.register_runner(conn, acct["id"], f"{name}-model (simulated)", lanes_prices, "simulated", cfg,
+                            start_exam=True, sync_exam=True)
+    return acct["id"]
+
+
+# ---------- verifiers ----------
+
+def test_math_extract_and_verify():
+    assert lanes.math_extract("blah\nANSWER: 1,225\nCONFIDENCE: 0.9") == "1225"
+    assert lanes.math_extract("so the answer is 3/4") == "0.75"
+    assert lanes.math_verify({"problem": "x", "expected": "0.25"}, "1/4").passed is True
+    assert lanes.math_verify({"problem": "x", "expected": "7"}, "8").passed is False
+    assert lanes.math_verify({"problem": "x"}, "8").passed is None  # delivered, not checked
+    assert lanes.parse_confidence("CONFIDENCE: 0.83") == 0.83
+
+
+def test_code_verifier_pass_and_fail():
+    item = taskbank.CODE[0]
+    p = taskbank.code_payload(item)
+    assert lanes.code_verify(p, item["reference"]).passed is True
+    assert lanes.code_verify(p, f"def {item['function_name']}(s):\n    return False\n").passed is False
+    assert lanes.code_verify(p, "def other():\n    pass\n").passed is False
+    assert lanes.code_verify(p, f"def {item['function_name']}(s):\n    while True: pass\n", timeout=1).passed is False
+
+
+def test_task_bank_answers_are_self_consistent():
+    for item in taskbank.CODE:
+        assert lanes.code_verify(taskbank.code_payload(item), item["reference"]).passed, item["id"]
+    assert {i["split"] for i in taskbank.MATH} == {"demo", "exam", "mystery"}
+
+
+# ---------- ledger ----------
+
+def test_ledger_refuses_overdraft_and_stays_balanced(conn):
+    s = make_sender(conn, usd=1.0)
+    with pytest.raises(ledger.InsufficientFunds):
+        with db.tx(conn):
+            ledger.move(conn, "too much", (s["id"], "wallet"), (s["id"], "escrow"), 2_000_000)
+    with pytest.raises(ValueError):
+        with db.tx(conn):
+            ledger.post(conn, "bad", [(s["id"], "wallet", 1)])
+    assert ledger.balance(conn, s["id"], "wallet") == 1_000_000
+    assert ledger.total(conn) == 0
+
+
+# ---------- ratings and dispatch ----------
+
+def test_lcb_prefers_proven_runner():
+    assert ratings.beta_lcb(1 + 970, 1 + 30) > ratings.beta_lcb(1 + 3, 1)
+
+
+def test_dispatch_presets_change_choice(conn):
+    cheap = make_runner(conn, "Cheap", {MATH: 0.0005}, {"accuracy": {MATH: 0.85}, "latency_ms": [0, 0]})
+    pricey = make_runner(conn, "Pricey", {MATH: 0.05}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    cands = dispatch.candidates(conn, MATH)
+    assert dispatch.rank(cands, "cheapest")[0].runner["id"] == cheap
+    assert dispatch.choose(cands, "best", "top")[0].runner["id"] in (cheap, pricey)
+    assert {c.runner["id"] for c in dispatch.candidates(conn, MATH, max_price=1000)} == {cheap}
+
+
+# ---------- errand lifecycle ----------
+
+def test_errand_settles_escrow_and_pays_runner(conn):
+    runner = make_runner(conn, "Duke", {MATH: 0.001}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    s = make_sender(conn, usd=1.0, consent_level=2)
+    item = taskbank.items(MATH, "demo")[0]
+    e = service.send_errand(conn, s, MATH, taskbank.payload_for(MATH, item), mystery_async=False)
+    assert e["status"] == "completed" and e["verdict"] == "passed" and e["answer"] == item["answer"]
+    assert ledger.balance(conn, runner, "earnings") == 1000
+    assert ledger.balance(conn, s["id"], "escrow") == 0
+    assert e["fee_usd"] == pytest.approx(0.0001)
+    assert e["dividend_usd"] == pytest.approx(0.00002)  # consent 2 earns 20% of the fee back
+    assert ledger.balance(conn, s["id"], "wallet") == 1_000_000 - 1100 + 20
+    assert ledger.total(conn) == 0
+
+
+def test_failed_attempt_is_refunded_and_retried(conn):
+    bad = make_runner(conn, "Bad", {MATH: 0.0001}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0], "swap_after": 6,
+                                                     "swap_accuracy": 0.0})
+    good = make_runner(conn, "Good", {MATH: 0.002}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    s = make_sender(conn, usd=1.0, preset="cheapest")
+    item = taskbank.items(MATH, "demo")[1]
+    e = service.send_errand(conn, s, MATH, taskbank.payload_for(MATH, item), mode="top", mystery_async=False)
+    assert e["status"] == "completed" and e["runner"]["id"] == good and e["attempts"] == 2
+    assert ledger.balance(conn, bad, "earnings") == 0  # never paid for wrong work
+    assert ledger.balance(conn, s["id"], "escrow") == 0
+
+
+def test_insufficient_funds_and_mandate(conn):
+    make_runner(conn, "Duke", {MATH: 0.001}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    broke = make_sender(conn, usd=0)
+    payload = {"problem": "What is 2 + 2?"}
+    with pytest.raises(service.FundsError):
+        service.send_errand(conn, broke, MATH, payload, mystery_async=False)
+    capped = make_sender(conn, usd=1.0, cap_per_errand_usd=0.01)
+    with pytest.raises(service.MandateError):
+        service.send_errand(conn, capped, MATH, payload, budget_usd=0.5, mystery_async=False)
+
+
+def test_unverifiable_math_is_delivered(conn):
+    make_runner(conn, "Duke", {MATH: 0.001}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    s = make_sender(conn)
+    e = service.send_errand(conn, s, MATH, {"problem": "What is 17 * 23?"}, mystery_async=False)
+    assert e["verdict"] == "delivered" and e["answer"] == "391"
+
+
+# ---------- integrity ----------
+
+def test_model_swap_is_caught_slashed_and_refunded(conn):
+    shady = make_runner(conn, "Shady", {MATH: 0.0005}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0],
+                                                         "swap_after": 6, "swap_accuracy": 0.0})
+    s = make_sender(conn, usd=1.0)
+    item = taskbank.items(MATH, "demo")[0]
+    payload = {"problem": item["problem"]}  # no expected answer: delivered, so the Sender pays for bad work
+    e = service.send_errand(conn, s, MATH, payload, mode="top", mystery_async=False)
+    assert e["runner"]["id"] == shady and e["verdict"] == "delivered"
+    flag = None
+    rng = random.Random(1)
+    for _ in range(10):
+        r = integrity.run_mystery(conn, MATH, shady, rng=rng)
+        if r is None:  # already suspended
+            break
+        flag = flag or r["flag"]
+    assert flag and flag["kind"] == "model_swap_suspected"
+    assert conn.execute("SELECT status FROM runners WHERE id=?", (shady,)).fetchone()[0] == "suspended"
+    assert ledger.balance(conn, shady, "bond") == 1_000_000  # half of $2 slashed
+    assert flag["refunded_usd"] == pytest.approx(0.0005)  # the Sender's payment came back
+    assert ledger.total(conn) == 0
+
+
+def test_exam_rejects_bad_runner(conn):
+    rid = make_runner(conn, "Weak", {CODE: 0.001}, {"accuracy": {CODE: 0.0}, "latency_ms": [0, 0]})
+    assert conn.execute("SELECT status FROM runners WHERE id=?", (rid,)).fetchone()[0] == "rejected"
+
+
+def test_runner_without_bond_waits(conn):
+    acct, _ = service.create_account(conn, "runner", "NoBond")
+    service.register_runner(conn, acct["id"], "m", {MATH: 0.001}, "simulated", {"accuracy": {MATH: 1}}, sync_exam=True)
+    assert service.runner_view(conn, acct["id"])["status"] == "needs_bond"
+
+
+# ---------- PayPal flows (mock mode) ----------
+
+def test_topup_requires_approval_then_credits_wallet(conn):
+    s = make_sender(conn, usd=0)
+    order = service.start_topup(conn, s, 5)
+    with pytest.raises(service.ErrandError):
+        service.complete_order(conn, order["order_id"])  # not approved yet
+    service.mock_approve(conn, order["order_id"])
+    service.complete_order(conn, order["order_id"])
+    service.complete_order(conn, order["order_id"])  # idempotent
+    assert ledger.balance(conn, s["id"], "wallet") == 5_000_000
+
+
+def test_bond_topup_starts_exam(conn):
+    acct, _ = service.create_account(conn, "runner", "Late")
+    service.register_runner(conn, acct["id"], "m", {MATH: 0.001}, "simulated",
+                            {"accuracy": {MATH: 1}, "latency_ms": [0, 0]}, start_exam=False)
+    order = service.start_topup(conn, acct, 2, purpose="bond")
+    service.mock_approve(conn, order["order_id"])
+    service.complete_order(conn, order["order_id"])
+    assert ledger.balance(conn, acct["id"], "bond") == 2_000_000
+
+
+def test_bounty_captures_on_pass_and_voids_on_fail(conn):
+    good = make_runner(conn, "Ada", {CODE: 0.001}, {"accuracy": {CODE: 1.0}, "latency_ms": [0, 0]})
+    s = make_sender(conn, usd=0)
+    item = taskbank.items(CODE, "demo")[0]
+    b = service.start_bounty(conn, s, CODE, taskbank.code_payload(item), 3)
+    service.mock_approve(conn, b["order_id"])
+    res = service.complete_order(conn, b["order_id"])
+    assert res["bounty"]["status"] == "completed"
+    assert ledger.balance(conn, good, "earnings") == 2_700_000  # $3 minus 10% fee
+    assert ledger.balance(conn, PLATFORM_ID, "revenue") >= 300_000
+
+    impossible = {"function_name": "nope", "spec": "unsolvable", "tests": "assert False"}
+    b2 = service.start_bounty(conn, s, CODE, impossible, 3)
+    service.mock_approve(conn, b2["order_id"])
+    res2 = service.complete_order(conn, b2["order_id"])
+    assert res2["bounty"]["status"] == "failed"
+    op = conn.execute("SELECT status FROM paypal_ops WHERE paypal_id=?", (b2["order_id"],)).fetchone()
+    assert op[0] == "voided"
+    assert ledger.total(conn) == 0
+
+
+def test_withdraw_needs_email_and_balance(conn):
+    rid = make_runner(conn, "Duke", {MATH: 0.001}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    fund(conn, rid, "earnings", 1.0)
+    runner = service.get_account(conn, rid)
+    with pytest.raises(service.ErrandError):
+        service.withdraw(conn, runner, 0.5)
+    runner = service.update_settings(conn, rid, {"paypal_email": "duke@example.com"})
+    out = service.withdraw(conn, runner, 0.5)
+    assert out["status"] == "SUCCESS"
+    assert ledger.balance(conn, rid, "earnings") == 500_000
+    with pytest.raises(ledger.InsufficientFunds):
+        service.withdraw(conn, runner, 5)
+
+
+def test_receipts_respect_consent(conn):
+    rid = make_runner(conn, "Duke", {MATH: 0.001}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    private = make_sender(conn, consent_level=0)
+    sharing = make_sender(conn, consent_level=2)
+    item = taskbank.items(MATH, "demo")[0]
+    for s in (private, sharing):
+        service.send_errand(conn, s, MATH, taskbank.payload_for(MATH, item), mystery_async=False)
+    rec = service.receipts_for(conn, rid)
+    assert len(rec) == 1 and rec[0]["share"] == "pool"
+
+
+def test_seed_and_tiers(seeded):
+    view = service.sender_view(seeded, "snd_alan")
+    assert view["tier"]["name"] == "Regular"
+    assert {r["status"] for r in service.leaderboard(seeded, MATH)} == {"active"}
