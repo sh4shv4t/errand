@@ -9,7 +9,7 @@
 - **Two colors and an accent:** **Paper** (warm cream) and **Forest** (deep green), with **Mandarin** (orange) as the only accent. Earthy, calm, editorial, in the spirit of Perplexity's cream-and-teal system, but warmer and more alive.
 - **Type:** **Geist** for UI and body, **Instrument Serif** italic for one accent word per headline, **Geist Mono** for errand IDs, Lanes and money.
 - **Signature object:** the **Receipt**. Perforated edges, mono figures, a verified stamp. It shows up everywhere: hero, dashboards, video.
-- **Motion:** short, purposeful, and tied to the product story. An errand loop in the hero, receipts that print, a savings counter, escrow that visibly holds and releases, leaderboard rows that re-sort. Every animation respects `prefers-reduced-motion`.
+- **Motion, two layers:** (1) **website interactions**: scroll-driven reveals, a line that draws as you scroll, a page that turns Forest for the results chapter, and hover states that feel crafted (sliding nav pill, growing underlines, receipts that lift); (2) **product story animations** in the demo and dashboards: an errand loop, receipts that print, a savings counter, escrow that holds and releases, a cheater caught. Everything respects `prefers-reduced-motion`.
 - **Not slop:** no purple gradients, no glass blobs, no emoji icons, no generic three-icon feature grid, no Inter-everything, no stock 3D renders. Real numbers and real product screens instead.
 
 ---
@@ -182,7 +182,47 @@ Use `text-wrap: balance` on headings as a progressive enhancement, never as a la
 
 Values follow the Perplexity system [P2]. Animate only `transform` and `opacity` (plus `stroke-dashoffset` and `clip-path` where noted), so nothing reflows.
 
-### 5.2 Signature animations (each tells part of the story)
+### 5.2 Website interactions: scroll
+
+The landing page should feel like it responds to the reader. Scroll effects are tied to scroll position (they scrub forward and back with the wheel) or fire once on entry. Use CSS scroll-driven animations (`animation-timeline: view()` and `scroll()`) where supported, and an `IntersectionObserver` fallback elsewhere. Scroll-driven timelines ship in Chrome and Edge 115+ and Safari 26+, while Firefox stable still has them behind a flag [P5][P6], so wrap them in `@supports (animation-timeline: view())`. No scroll event listeners, no animation libraries.
+
+| # | Where | Effect | How |
+|---|---|---|---|
+| S1 | Top of page | A 2px Mandarin **reading-progress line** fills left to right as you scroll. | `animation-timeline: scroll(root)` on `scaleX` |
+| S2 | Navbar | Starts transparent and roomy; after ~24px of scroll it gains the Card background, a hairline and shrinks from 72px to 56px. | A sentinel element plus `IntersectionObserver` toggling a class; 200ms transition |
+| S3 | Hero headline | On load, words rise out of a mask one by one (40ms stagger); the serif accent word lands last and slightly slower. | `overflow: hidden` wrappers, `translateY(100%)` to `0`, 480ms ease-out-soft |
+| S4 | Hero | As you scroll away, the errand-loop illustration drifts up slower than the text and fades (a light parallax). | `animation-timeline: view()` on `translateY` and `opacity`; max 40px of drift |
+| S5 | How it works | **The out-and-back line draws itself as you scroll.** Each step lights up (Ink text, Forest dot) as the line reaches it; scrolling back undraws it. | SVG path, `stroke-dashoffset` bound to `view()`; steps use their own view timelines |
+| S6 | Live receipts strip | The row of receipts slides sideways a little as you scroll past it, so the page feels alive even with no new errands. | `translateX` bound to `view()`, about 120px over the section |
+| S7 | Results chapter | **The page background melts from Paper to Forest** as the results band enters, then back to Paper after it. Numbers count up when they become visible. | Background color keyed to a `view()` timeline on a full-bleed layer; count-up via `IntersectionObserver` (runs once) |
+| S8 | Key phrases | Phrases like "only when it's verified" get a Mandarin underline that draws from the left when they reach the middle of the screen. | `background-size` from `0% 2px` to `100% 2px`, view timeline with `entry 40% cover 50%` range |
+| S9 | Villain section | **Sticky storytelling:** Shady's card stays pinned while three short beats scroll past (swap detected, Bond slashed, refund sent), and the card updates at each beat. | `position: sticky` card plus `IntersectionObserver` on each beat |
+| S10 | Nature photos | Duotone photos open with a clip reveal (an inset that widens) and settle from `scale(1.08)` to `1` as they pass. | `clip-path: inset()` and `scale` on a view timeline |
+| S11 | Every section | Default entrance: fade up 16px, children staggered 60ms. Only once per element. | `IntersectionObserver` class toggle |
+
+Rules for scroll effects: at most one "big" effect per screen height (S5, S7 or S9), small ones elsewhere; nothing may block reading or move text the user is reading; and scrolling must stay native, with no scroll-jacking or snap-trapping.
+
+### 5.3 Website interactions: hover and press
+
+Hover states are where polish shows. They live inside `@media (hover: hover) and (pointer: fine)`, so phones get clean tap states instead of stuck hovers.
+
+| # | Element | Hover | Press / focus |
+|---|---|---|---|
+| H1 | Nav links | A Paper Deep **pill slides** under the hovered link and follows the cursor between links. | The active page keeps the pill |
+| H2 | Text links | An underline grows from the left (Mandarin Deep); on leave it exits to the right. | Focus shows the 2px Forest ring |
+| H3 | Primary and accent buttons | Background deepens and the trailing arrow icon nudges 3px right. | Scales to 0.98 for 120ms |
+| H4 | Cards | Border goes from default to strong and the title shifts 2px right. No lift, no shadow (depth by contrast). | Whole card is the link target |
+| H5 | **Receipts** | The receipt lifts 2px and tilts 0.5 degrees, a soft overlay shadow appears, and the perforated edge becomes visible. The one place a shadow is allowed. | |
+| H6 | Runner cards (leaderboard) | A small pass-rate sparkline draws itself, and the price chip turns Mandarin. | |
+| H7 | Lane chips | A tooltip (Ink pill) shows price, pass rate with sample size, and p95 latency. | Opens on focus too |
+| H8 | Copy buttons on code snippets | Icon swaps to a check that draws itself, label says "Copied" for 1.5s. | Announced to screen readers |
+| H9 | Client logos | Ink at 60% opacity, rising to 100% and Forest on hover. Never full brand colors. | |
+| H10 | Forest band (optional) | A very soft lighter-Forest spotlight follows the cursor (radial gradient at about 8% opacity). | Off on touch and reduced motion |
+| H11 | Footer tagline | The serif accent word slants a little more on hover. The page's one wink. | |
+
+Timing: hovers use `--t-fast` (120ms) on enter and `--t-base` (200ms) on leave, so things respond instantly and settle gently.
+
+### 5.4 Product story animations (demo, dashboards and video)
 
 | # | Element | What it does | How |
 |---|---|---|---|
@@ -196,13 +236,14 @@ Values follow the Perplexity system [P2]. Animate only `transform` and `opacity`
 | 8 | **Composer placeholder** | The delegate box types example errands ("Solve: the sum of the first 50 primes...", "Write is_palindrome with tests...") and erases them. | A small JS loop, paused when the input has focus |
 | 9 | **Live dot** | Mandarin dot pulses next to "running" and in the navbar when the demo is live. | `scale` and `opacity` keyframe at 1.6s |
 
-### 5.3 Motion rules
+### 5.5 Motion rules
 
 - **Purpose test:** every animation must show a state change (sent, held, verified, slashed). Decoration-only motion gets cut.
 - **One thing moves at a time** in a viewport, except the ambient live dot.
 - **`prefers-reduced-motion: reduce`:** remove translations, shakes and loops. Keep opacity fades at half duration, and show the final state immediately (counters jump to the value, receipts appear printed) [P3].
 - **Interruptible:** rapid updates may cancel an animation, but the final state and keyboard focus must always be correct [P3].
 - **No scroll hijacking.** Perplexity's Comet launch page was criticized for it [P4].
+- **Performance:** animate only `transform`, `opacity`, `clip-path`, `stroke-dashoffset` and background color on one layer. Use `will-change` only while an element animates. The whole interaction layer should fit in a few KB of vanilla JS in `app.js`.
 
 ---
 
@@ -217,7 +258,8 @@ Values follow the Perplexity system [P2]. Animate only `transform` and `opacity`
 - [ ] Mandarin used as text only in Mandarin Deep. Ink text on Mandarin buttons.
 - [ ] Visible focus ring, `cursor: pointer` on clickables, 4.5:1 text contrast [P3].
 - [ ] Layout checked at 375, 768, 1024 and 1440px; chips and badges wrap instead of clipping [P3].
-- [ ] Reduced motion tested.
+- [ ] Reduced motion tested: scroll effects become static, hovers keep color changes only.
+- [ ] Scroll effects checked in Firefox (fallback path) and on a phone (no stuck hovers).
 - [ ] Real product screens in the video and on the landing page, not mockups.
 
 ---
@@ -245,6 +287,13 @@ The current CSS already uses tokens (`--ink`, `--paper`, `--orange`...), so the 
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+  [data-scroll-fx] { animation: none !important; }  /* scroll-driven effects become static */
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .progress { transform-origin: left; animation: grow linear both; animation-timeline: scroll(root); }
+    .reveal  { animation: fade-up linear both; animation-timeline: view(); animation-range: entry 0% entry 60%; }
+  }
 }
 ```
 
@@ -264,4 +313,6 @@ Mirror the dark tokens under `@media (prefers-color-scheme: dark) { :root:not([d
 - [P2] Perplexity DESIGN.md (third-party token extraction: colors, type, spacing, motion). https://www.webdesignhot.com/design.md/perplexity/
 - [P3] nextlevelbuilder, *UI UX Pro Max* skill (MIT). https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
 - [P4] Hacker News discussion of the Comet launch page. https://hn.nuxt.dev/item/44511527
+- [P5] MDN / caniuse status as summarized in "Replace Your Scroll-Listener JS: CSS Scroll-Driven Animations Go Cross-Browser" (2026). https://www.buildmvpfast.com/blog/css-scroll-driven-animations-replace-js-2026
+- [P6] ICS Media, "CSS Scroll-driven Animations without JavaScript". https://ics.media/en/entry/230718/
 - Reference palettes: two images supplied by the founder (Mandarin Orange `#FD550A`, Forest Green `#015D47`, Crest Yellow `#E0F354`; Onyx Black, Electric Indigo, Tropical Mint).
