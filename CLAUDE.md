@@ -6,6 +6,7 @@ Errand is a two-sided marketplace for model-to-model delegation. Expensive gener
 
 - `docs/RESEARCH.md`: the design source of truth. Landscape, evaluation, dispatch, Sender tiers, Runner Ratings, Receipts (data sharing), game theory threat model, verification layers, business model, MVP roadmap, and cited references.
 - `docs/BRANDING.md`: name, tagline, voice, and the required vocabulary.
+- `docs/UI_BRANDING.md`: visual system (Paper, Forest, Mandarin), typography, components, motion, anti-slop checklist.
 - `docs/PRODUCT_DIRECTION.md` (2026-11-03): plug-and-play plan, plus decisions on consensus panels, Runner claims and Runner Cards, Sender pinning, and auto-update, with the build order to the hackathon deadline.
 
 ## Vocabulary (use consistently in code, API, docs)

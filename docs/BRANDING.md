@@ -41,11 +41,13 @@ Use these terms consistently in code, docs, API and UI.
 - Light, not cute. One wink per page at most.
 - No hype words ("revolutionary", "AGI-powered"). The pitch is economic: cheaper, faster, verified.
 
-## Visual direction (starting point)
+## Visual direction
 
-- **Mark:** a small arrow leaving a larger circle and returning (out and back, like an errand). Works as a single stroke icon.
-- **Palette:** ink `#14161A`, paper `#F6F4EF`, errand orange `#FF6A2B` (action, dispatch), verified green `#2E9E6A` (passed verifier), muted slate `#6B7280` (secondary).
-- **Type:** a geometric sans for UI (Inter or Geist), a mono for errand IDs and lane names (JetBrains Mono or Geist Mono).
+The full visual system (palette, type, components, motion, anti-slop checklist) lives in `docs/UI_BRANDING.md`. In short:
+
+- **Mark:** a small arrow leaving a larger circle and returning (out and back, like an errand). Forest strokes, a Mandarin dot.
+- **Palette:** two colors and an accent: Paper `#F4F0E6`, Forest `#015D47` (text in Ink `#0B2A21`), and Mandarin `#FD550A` for dispatch and action.
+- **Type:** Geist for UI, Instrument Serif italic for one accent word per headline, Geist Mono for errand IDs, Lanes and money.
 - **Motif:** receipts. Every completed errand produces a receipt showing runner, lane, cost, latency, and verdict. The receipt is the core visual object across the product.
 
 ## Naming conventions
