@@ -1,5 +1,7 @@
 # Errand: Research Findings and Design Proposal
 
+*Follow-up decisions (consensus panels, Runner claims, pinning, auto-update, plug and play) live in `docs/PRODUCT_DIRECTION.md`.*
+
 *Compiled 2026-10-30. Citations are numbered and listed in [References](#references). All links were checked when this was written.*
 
 ---

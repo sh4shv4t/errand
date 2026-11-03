@@ -6,6 +6,7 @@ Errand is a two-sided marketplace for model-to-model delegation. Expensive gener
 
 - `docs/RESEARCH.md`: the design source of truth. Landscape, evaluation, dispatch, Sender tiers, Runner Ratings, Receipts (data sharing), game theory threat model, verification layers, business model, MVP roadmap, and cited references.
 - `docs/BRANDING.md`: name, tagline, voice, and the required vocabulary.
+- `docs/PRODUCT_DIRECTION.md` (2026-11-03): plug-and-play plan, plus decisions on consensus panels, Runner claims and Runner Cards, Sender pinning, and auto-update, with the build order to the hackathon deadline.
 
 ## Vocabulary (use consistently in code, API, docs)
 
@@ -22,6 +23,11 @@ Errand (unit of work), Sender (consumer), Runner (provider), Lane (task category
 - Receipts are opt-in (levels 0 to 3), default private, credited by measured value.
 - Centralized evaluation first; keep interfaces open to decentralizing later.
 - Expose Errand as an MCP server (`send_errand`, `recommend_runner`) so models can delegate natively.
+- Plug and play: keep trust mechanisms (escrow, mystery errands, slashing) but make them invisible; default surface is one `delegate` tool, starter credit, hosted gateway, one-click connect.
+- Consensus is an opt-in panel, capped at 5, adaptive (2 then a tie-breaker); every member is paid; agreement is a weak rating signal, never "verified".
+- Runner claims are a weak Beta prior (a few pseudo-observations); measurements replace them; Errand publishes a Markdown Runner Card. Embedding routing only once data exists.
+- Senders can always pin a Runner or model (fallback on by default); escrow and verification still apply; pinned errands are logged as `policy="pinned"`.
+- Updates ship server side: thin clients fetch tools from `/v1/tools`, version handshake via `/v1/config`, user-initiated `errand update`.
 
 ## Code map (MVP, branch feat/end-to-end-mvp)
 
