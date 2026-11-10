@@ -71,6 +71,37 @@ TITLE_HTML = """<!doctype html><html><head>
 </div></div></body></html>"""
 
 
+TERMINAL_HTML = """<!doctype html><html><head>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%;background:#f4f0e6;font-family:Geist,sans-serif;overflow:hidden}
+  .stage{height:100%;display:grid;place-items:center}
+  .win{width:1440px;height:760px;background:#0b1f19;border-radius:18px;box-shadow:0 40px 80px -30px rgba(11,42,33,.45);
+       display:flex;flex-direction:column;overflow:hidden}
+  .bar{height:52px;display:flex;align-items:center;gap:10px;padding:0 22px;background:#12291f;color:#9db3aa;font:500 17px Geist Mono,monospace}
+  .bar i{width:13px;height:13px;border-radius:50%;background:#2c4a3f;display:inline-block}
+  .bar span{margin-left:14px}
+  #log{flex:1;padding:30px 36px;font:24px/1.75 'Geist Mono',monospace;color:#f4f0e6;overflow:hidden}
+  .ln{white-space:pre-wrap;animation:in .35s ease-out both}
+  @keyframes in{from{opacity:0;transform:translateY(6px)}}
+  .p{color:#7fd1b0}.dim{color:#9db3aa}.tool{color:#e0f354}.ok{color:#7fd1b0}.err{color:#f19a8c}.file{color:#f4f0e6}.agent{color:#f4f0e6}
+  .cur{display:inline-block;width:12px;height:26px;background:#f4f0e6;vertical-align:-5px;animation:b 1s steps(1) infinite}
+  @keyframes b{50%{opacity:0}}
+</style></head><body><div class="stage"><div class="win">
+  <div class="bar"><i></i><i></i><i></i><span>~/my-app · coding agent (qwen2.5 7B) + Errand</span></div>
+  <div id="log"></div></div></div>
+<script>
+  const log = document.getElementById('log');
+  window.addLine = (cls, text) => { const d = document.createElement('div'); d.className = 'ln ' + cls; d.textContent = text; log.appendChild(d); return d; };
+  window.typeLine = (prefix, text, ms) => new Promise((done) => {
+    const d = document.createElement('div'); d.className = 'ln'; d.innerHTML = '<span class="p">' + prefix + '</span><span class="t"></span><span class="cur"></span>';
+    log.appendChild(d); const t = d.querySelector('.t'); let i = 0;
+    const tick = () => { t.textContent = text.slice(0, ++i); i < text.length ? setTimeout(tick, ms) : (d.querySelector('.cur').remove(), done()); };
+    tick();
+  });
+</script></body></html>"""
+
+
 class Timeline:
     def __init__(self):
         self.t0 = time.monotonic()
@@ -97,9 +128,12 @@ def start_server() -> subprocess.Popen:
     for p in OUT.glob("errand.db*"):
         p.unlink()
     (OUT / "demo_keys.json").unlink(missing_ok=True)
-    env = os.environ | {"ERRAND_DB": str(db), "ERRAND_BASE_URL": BASE, "ERRAND_DEMO": "1", "PYTHONIOENCODING": "utf-8"}
-    # populate history so receipts, rankings and savings are real, then serve with visible (but short) latency
-    subprocess.run([str(ERRAND), "demo", "-n", "36", "--speed", "0", "--seed", "11"], env=env, cwd=ROOT, check=True,
+    env = os.environ | {"ERRAND_DB": str(db), "ERRAND_BASE_URL": BASE, "ERRAND_DEMO": "1", "PYTHONIOENCODING": "utf-8",
+                         "ERRAND_OLLAMA_MODELS": "qwen2.5-coder:1.5b,qwen2.5:1.5b,phi3:mini"}
+    # seed (local Ollama models become real Runners), populate history so receipts and rankings are real,
+    # then serve with visible but short latency
+    subprocess.run([str(ERRAND), "seed"], env=env, cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
+    subprocess.run([str(ERRAND), "demo", "-n", "30", "--speed", "0", "--seed", "11"], env=env, cwd=ROOT, check=True,
                    stdout=subprocess.DEVNULL)
     env["ERRAND_SIM_LATENCY_SCALE"] = "0.8"
     proc = subprocess.Popen([str(ERRAND), "serve", "--port", str(PORT)], env=env, cwd=ROOT,
@@ -145,8 +179,59 @@ def click(page, tl: Timeline, selector: str, nth: int = 0) -> None:
 def title_card(page, tl: Timeline, tag: str, title: str, sub: str, hold: int = 2600) -> None:
     page.set_content(TITLE_HTML.replace("%TAG%", tag).replace("%TITLE%", title).replace("%SUB%", sub))
     page.wait_for_load_state("networkidle")
-    tl.add("sfx", name="whoosh")
     page.wait_for_timeout(hold)
+
+
+AGENT_TASK = "Add a function is_palindrome(s) to text_utils.py that ignores case and spaces."
+
+
+def agent_scene(page, tl: Timeline) -> None:
+    """Run the real coding agent and stream its output into a terminal window."""
+    page.set_content(TERMINAL_HTML)
+    page.wait_for_load_state("networkidle")
+    page.mouse.move(W - 40, H - 40)
+    tl.add("caption", text="Your coding agent gets one new tool: Errand.", dur=3.2)
+    page.wait_for_timeout(700)
+    page.evaluate("([p, t]) => typeLine(p, t, 28)", ["you › ", AGENT_TASK])
+    page.wait_for_timeout(600)
+    key = json.loads((OUT / "demo_keys.json").read_text(encoding="utf-8"))["senders"]["snd_alan"]["api_key"]
+    env = os.environ | {"ERRAND_URL": BASE, "ERRAND_API_KEY": key, "LLM_MODEL": "qwen2.5:7b", "PYTHONIOENCODING": "utf-8", "AGENT_BUDGET_USD": "0.001",
+                        "AGENT_PROJECT": str(OUT / "my-app")}
+    proc = subprocess.Popen([str(ROOT / ".venv" / "Scripts" / "python.exe"), str(ROOT / "demo" / "coding_agent.py"), AGENT_TASK],
+                            env=env, cwd=ROOT, stdout=subprocess.PIPE, text=True, encoding="utf-8")
+    page.evaluate("() => addLine('dim', 'agent › thinking…')")
+    page.wait_for_timeout(1000)
+    tl.add("fast", on=True)  # model think time plays as a time-lapse in the edit
+    for raw in proc.stdout:
+        kind, _, text = raw.rstrip("\n").partition("|")
+        if kind == "user":
+            continue
+        tl.add("fast", on=False)
+        if kind == "tool":
+            page.evaluate("([t]) => addLine('tool', '⚙ ' + t)", [text])
+            tl.add("sfx", name="click")
+            tl.add("caption", text="It hands the function, with tests, to a cheaper specialist.", dur=3.4)
+            sel = "#log .ln.tool"
+            tl.zoom(page, sel, scale=1.5, pad=40)
+        elif kind == "ok":
+            page.evaluate("([t]) => addLine('ok', '✓ ' + t)", [text])
+            tl.add("sfx", name="ding")
+            tl.add("caption", text="Errand runs the tests. Only passing code gets paid.", dur=3.4)
+            tl.zoom(page, "#log .ln.ok", scale=1.5, pad=40)
+        elif kind == "err":
+            page.evaluate("([t]) => addLine('err', '✗ ' + t)", [text])
+        elif kind == "file":
+            page.evaluate("([t]) => addLine('file', '✎ ' + t)", [text])
+        elif kind == "agent":
+            page.evaluate("([t]) => addLine('agent', 'agent › ' + t)", [text])
+        page.wait_for_timeout(3600 if kind in ("tool", "ok") else 1400)
+        tl.unzoom()
+        tl.add("fast", on=True)
+    tl.add("fast", on=False)
+    proc.wait()
+    page.wait_for_timeout(1600)
+    tl.unzoom()
+    page.wait_for_timeout(900)
 
 
 def main() -> None:
@@ -167,7 +252,6 @@ def main() -> None:
             # 2. landing hero
             page.goto(BASE + "/")
             page.mouse.move(W * 0.7, H * 0.75)
-            tl.add("sfx", name="whoosh")
             tl.add("caption", text="Big AI models are brilliant. And expensive.", dur=3.0)
             page.wait_for_timeout(900)
             tl.zoom(page, ".hero h1", scale=1.45, pad=60)
@@ -178,24 +262,26 @@ def main() -> None:
             tl.unzoom()
             page.wait_for_timeout(700)
 
-            # 3. real benchmark
-            tl.add("sfx", name="whoosh")
+            # 3. a real coding agent using Errand
+            agent_scene(page, tl)
+            page.goto(BASE + "/")
+            page.wait_for_timeout(600)
+
+            # 4. real benchmark
             scroll_to(page, "#results", offset=40, ms=1500)
-            tl.add("caption", text="We benchmarked real small models on a 4 GB laptop GPU.", dur=3.4)
+            tl.add("caption", text="We put real open models through Errand.", dur=3.0)
             page.wait_for_timeout(1200)
             tl.zoom(page, "#results .stats", scale=1.35, pad=30)
-            tl.add("sfx", name="tick")
             page.wait_for_timeout(2600)
             tl.unzoom()
             scroll_to(page, "#results .bandsub", offset=160, ms=1000)
-            tl.add("caption", text="Picking the right model per job beats any single model.", dur=3.4)
+            tl.add("caption", text="The right model for each job beats any single model.", dur=3.2)
             page.wait_for_timeout(500)
             tl.zoom(page, "#results .costbars.models", scale=1.5, pad=40)
             page.wait_for_timeout(3000)
             tl.unzoom()
 
-            # 4. rankings
-            tl.add("sfx", name="whoosh")
+            # 5. rankings
             scroll_to(page, "#ranks", offset=260, ms=1500)
             tl.add("caption", text="Specialists are ranked by how often they're right.", dur=3.0)
             page.wait_for_timeout(500)
@@ -204,19 +290,20 @@ def main() -> None:
             page.wait_for_timeout(2600)
             tl.unzoom()
 
-            # 5. into the product
-            tl.add("sfx", name="whoosh")
+            # 6. into the dashboard, where the agent's errand already shows up
             ease_scroll(page, 0, 1300)
             page.wait_for_timeout(300)
-            tl.add("caption", text="Let's try it. No signup.", dur=2.2)
             click(page, tl, ".hero button.accent")
             page.wait_for_url("**/dashboard")
             page.wait_for_timeout(1200)
-            tl.zoom(page, ".kpis", scale=1.3, pad=30)
-            page.wait_for_timeout(1800)
+            tl.add("caption", text="Every errand your agent sends shows up here.", dur=3.0)
+            scroll_to(page, "#errands-grid", offset=200, ms=1100)
+            tl.zoom(page, "#errands-grid .ag-row", scale=1.6, pad=30)
+            page.wait_for_timeout(2600)
             tl.unzoom()
+            ease_scroll(page, 0, 900)
 
-            # 6. a math errand, verified then paid
+            # 7. a math errand, verified then paid
             tl.add("caption", text="Describe the job. Add the answer you expect, if you know it.", dur=3.4)
             click(page, tl, "#example-btn")
             page.wait_for_timeout(500)
@@ -224,19 +311,17 @@ def main() -> None:
             page.wait_for_timeout(2600)
             tl.unzoom()
             click(page, tl, "#send-btn")
-            tl.add("sfx", name="whoosh")
             page.wait_for_selector(".receipt-wrap", timeout=20000)
             scroll_to(page, "#result", offset=260, ms=900)
             tl.zoom(page, "#result", scale=1.45, pad=30)
             tl.add("caption", text="Checked first. Paid only because it's right.", dur=3.4)
             page.wait_for_timeout(750)
-            tl.add("sfx", name="stamp")
             page.wait_for_timeout(500)
             tl.add("sfx", name="ding")
             page.wait_for_timeout(2600)
             tl.unzoom()
 
-            # 7. pick your own model, a code errand
+            # 8. pick your own model, a code errand
             ease_scroll(page, 0, 900)
             tl.add("caption", text="Want a specific model? Pick it. Code jobs ship with tests.", dur=3.4)
             click(page, tl, "#example-btn")
@@ -248,19 +333,17 @@ def main() -> None:
             page.wait_for_timeout(1700)
             tl.unzoom()
             click(page, tl, "#send-btn")
-            tl.add("sfx", name="whoosh")
             page.wait_for_function("document.querySelector('#result .line') && document.querySelector('#result').innerText.includes('pinned')",
                                    timeout=30000)
             scroll_to(page, "#result", offset=260, ms=900)
             tl.zoom(page, "#result", scale=1.45, pad=30)
             page.wait_for_timeout(750)
-            tl.add("sfx", name="stamp")
             page.wait_for_timeout(500)
             tl.add("sfx", name="ding")
             page.wait_for_timeout(2200)
             tl.unzoom()
 
-            # 8. savings and connect
+            # 9. savings and connect
             ease_scroll(page, 0, 900)
             page.wait_for_timeout(300)
             tl.add("caption", text="Every errand adds to what you've saved.", dur=2.6)
@@ -275,9 +358,9 @@ def main() -> None:
             tl.unzoom()
             page.wait_for_timeout(500)
 
-            # 9. end card
+            # 10. end card
             title_card(page, tl, "PAY ON PROOF · SETTLED WITH PAYPAL", "Errand<span class='dot'></span>",
-                       "39 of 44 right. 98% cheaper. Zero wrong answers paid for.", hold=3600)
+                       "Same answers. 98% cheaper. Pay only when it's right.", hold=3600)
             tl.add("end")
 
             video = page.video

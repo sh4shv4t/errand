@@ -9,7 +9,6 @@ Everything audible is generated here with NumPy, so there is nothing to license.
 from __future__ import annotations
 
 import json
-import math
 import subprocess
 import wave
 from pathlib import Path
@@ -21,6 +20,7 @@ OUT = Path(__file__).resolve().parent / "out"
 FPS = 30
 SR = 44100
 ZOOM_S = 0.9          # seconds per camera move
+FAST = 8              # time-lapse factor for model think time
 FONT = "C\\:/Windows/Fonts/segoeuib.ttf"
 
 
@@ -61,28 +61,54 @@ def camera_track(events: list[dict], w: int, h: int):
     return at
 
 
-def render_video(src: Path, dst: Path, events: list[dict]) -> float:
+def fast_spans(events: list[dict]) -> list[tuple[float, float]]:
+    """(start, end) spans, in recorded time, that play as a time-lapse."""
+    spans, start = [], None
+    for e in events:
+        if e["kind"] == "fast" and e["on"] and start is None:
+            start = e["t"]
+        elif e["kind"] == "fast" and not e["on"] and start is not None:
+            if e["t"] - start > 0.5:
+                spans.append((start, e["t"]))
+            start = None
+    return spans
+
+
+def retime(t: float, spans: list[tuple[float, float]]) -> float:
+    """Recorded time -> time in the cut."""
+    out = t
+    for a, b in spans:
+        if t > a:
+            out -= (min(t, b) - a) * (1 - 1 / FAST)
+    return out
+
+
+def render_video(src: Path, dst: Path, events: list[dict], spans: list[tuple[float, float]]) -> float:
     cap = cv2.VideoCapture(str(src))
     w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     cam = camera_track(events, w, h)
     enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{w}x{h}",
                             "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", "medium", "-crf", "18",
                             "-pix_fmt", "yuv420p", str(dst)], stdin=subprocess.PIPE)
-    n = 0
+    n = kept = 0
     while True:
         ok, frame = cap.read()
         if not ok:
             break
-        cx, cy, s = cam(n / FPS)
+        t = n / FPS
+        n += 1
+        if any(a <= t < b for a, b in spans) and n % FAST:
+            continue  # time-lapse: keep one frame in FAST
+        cx, cy, s = cam(t)
         if s > 1.001:
             m = np.float32([[s, 0, w / 2 - s * cx], [0, s, h / 2 - s * cy]])
             frame = cv2.warpAffine(frame, m, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
         enc.stdin.write(frame.tobytes())
-        n += 1
+        kept += 1
     cap.release()
     enc.stdin.close()
     enc.wait()
-    return n / FPS
+    return kept / FPS
 
 
 # ---------------------------------------------------------------- audio
@@ -101,16 +127,6 @@ def tone(freq: float, dur: float, kind: str = "sine") -> np.ndarray:
     if kind == "tri":
         return 2 / np.pi * np.arcsin(np.sin(ph))
     return np.sin(ph)
-
-
-def lowpass(x: np.ndarray, cutoff: float) -> np.ndarray:
-    a = math.exp(-2 * math.pi * cutoff / SR)
-    y = np.empty_like(x)
-    acc = 0.0
-    for i, v in enumerate(x):  # one-pole filter; fine for a few seconds of SFX
-        acc = (1 - a) * v + a * acc
-        y[i] = acc
-    return y
 
 
 def note(n: int) -> float:  # MIDI note -> Hz
@@ -155,29 +171,14 @@ def soundtrack(dur: float) -> np.ndarray:
 
 
 def sfx(name: str) -> np.ndarray:
-    rng = np.random.default_rng(len(name))
+    """Soft, purely tonal cues that sit inside the jingle (no noise-based whooshes)."""
     if name == "click":
-        n = int(0.06 * SR)
-        return (tone(2400, 0.06) * 0.5 + rng.normal(0, 0.3, n)) * np.exp(-np.linspace(0, 14, n)) * 0.35
-    if name == "tick":
-        n = int(0.08 * SR)
-        return tone(1320, 0.08) * np.exp(-np.linspace(0, 10, n)) * 0.25
-    if name == "whoosh":
-        n = int(0.55 * SR)
-        noise = rng.normal(0, 1, n)
-        swell = np.sin(np.linspace(0, np.pi, n)) ** 2
-        return (lowpass(noise, 900) * 3 + lowpass(noise, 3000) * 0.6) * swell * 0.22
-    if name == "stamp":
-        n = int(0.25 * SR)
-        thump = np.sin(2 * np.pi * np.cumsum(np.linspace(140, 60, n)) / SR) * np.exp(-np.linspace(0, 12, n))
-        return (thump * 0.7 + rng.normal(0, 0.4, n) * np.exp(-np.linspace(0, 40, n))) * 0.55
+        n = int(0.09 * SR)
+        return (tone(880, 0.09) + 0.5 * tone(1320, 0.09)) * np.exp(-np.linspace(0, 9, n)) * 0.10
     if name == "ding":
-        n = int(1.4 * SR)
-        d = np.exp(-np.linspace(0, 5, n))
-        return (tone(1568, 1.4) * 0.6 + tone(2093, 1.4) * 0.35 + tone(3136, 1.4) * 0.12) * d * 0.3
-    if name == "swish":
-        n = int(0.35 * SR)
-        return lowpass(rng.normal(0, 1, n), 1800) * np.sin(np.linspace(0, np.pi, n)) ** 3 * 0.25
+        n = int(1.6 * SR)
+        d = np.exp(-np.linspace(0, 4.5, n)) * env(n, 0.004, 0.2)
+        return (tone(1046.5, 1.6) * 0.6 + tone(1568, 1.6) * 0.3 + tone(2093, 1.6) * 0.08) * d * 0.16
     return np.zeros(1)
 
 
@@ -186,16 +187,14 @@ def mix_audio(events: list[dict], dur: float, dst: Path) -> None:
     fx = np.zeros_like(music)
     cache: dict[str, np.ndarray] = {}
     for e in events:
-        name = e.get("name") if e["kind"] == "sfx" else ("swish" if e["kind"] == "zoom" else None)
+        name = e.get("name") if e["kind"] == "sfx" else None
         if not name:
             continue
         s = cache.setdefault(name, sfx(name))
         i = int(e["t"] * SR)
         seg = fx[i:i + len(s)]
         seg += s[: len(seg)]
-    # duck the music a little under sound effects
-    duck = 1 - 0.35 * np.clip(np.convolve(np.abs(fx), np.ones(2205) / 2205, mode="same") * 6, 0, 1)
-    mix = music * duck + fx
+    mix = music + fx
     mix /= max(1.0, np.max(np.abs(mix)) / 0.89)
     pcm = (np.stack([mix, mix], axis=1) * 32767).astype("<i2")
     with wave.open(str(dst), "wb") as wf:
@@ -208,20 +207,24 @@ def mix_audio(events: list[dict], dur: float, dst: Path) -> None:
 # ---------------------------------------------------------------- captions and final mux
 
 def caption_filter(events: list[dict]) -> str:
+    """Lower-third captions: a dark pill with a thin light ring, so they read on paper and on Forest alike.
+    A caption ends early if the next one starts, so two never overlap."""
     parts = []
     caps = [e for e in events if e["kind"] == "caption"]
     for i, e in enumerate(caps):
-        a, b = e["t"] + 0.2, e["t"] + 0.2 + e["dur"]
+        a = e["t"] + 0.2
+        b = a + e["dur"]
+        if i + 1 < len(caps):
+            b = min(b, caps[i + 1]["t"] + 0.1)
         f = OUT / "captions" / f"{i:02d}.txt"
         f.parent.mkdir(exist_ok=True)
         f.write_text(e["text"], encoding="utf-8")
         path = str(f).replace("\\", "/").replace(":", "\\:")
         alpha = f"if(lt(t,{a}+0.25),(t-{a})/0.25,if(gt(t,{b}-0.3),({b}-t)/0.3,1))"
-        parts.append(
-            f"drawtext=fontfile='{FONT}':textfile='{path}':fontsize=44:fontcolor=0xF4F0E6:"
-            f"box=1:boxcolor=0x0B2A21@0.88:boxborderw=26|40:x=(w-text_w)/2:y=h-text_h-110:"
-            f"alpha='{alpha}':enable='between(t,{a},{b})'"
-        )
+        common = (f"fontfile='{FONT}':textfile='{path}':fontsize=44:x=(w-text_w)/2:y=h-text_h-110:"
+                  f"alpha='{alpha}':enable='between(t,{a},{b})'")
+        parts.append(f"drawtext={common}:fontcolor=0xF4F0E6@0:box=1:boxcolor=0xF4F0E6@0.9:boxborderw=30|44")
+        parts.append(f"drawtext={common}:fontcolor=0xF4F0E6:box=1:boxcolor=0x0B2A21@0.94:boxborderw=26|40")
     return ",".join(parts) or "null"
 
 
@@ -231,12 +234,18 @@ def main() -> None:
     cfr = OUT / "cfr.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(OUT / "raw.webm"), "-r", str(FPS), "-c:v", "libx264",
                     "-crf", "14", "-preset", "veryfast", "-an", str(cfr)], check=True)
-    print("zooming...")
-    dur = render_video(cfr, OUT / "zoomed.mp4", events)
+    spans = fast_spans(events)
+    print(f"zooming ({len(spans)} time-lapse spans)...")
+    dur = render_video(cfr, OUT / "zoomed.mp4", events, spans)
+    events = [e | {"t": round(retime(e["t"], spans), 3)} for e in events]  # cues follow the cut
     print("mixing audio...")
     mix_audio(events, dur, OUT / "audio.wav")
     print("captions and mux...")
-    vf = caption_filter(events) + f",fade=t=in:st=0:d=0.6,fade=t=out:st={dur - 1.2:.2f}:d=1.2"
+    badge = "".join(
+        f",drawtext=fontfile='{FONT}':text='8× speed':fontsize=30:fontcolor=0x0B2A21:box=1:boxcolor=0xE0F354@0.95:"
+        f"boxborderw=12|18:x=w-text_w-60:y=50:enable='between(t,{retime(a, spans):.2f},{retime(b, spans):.2f})'"
+        for a, b in spans)
+    vf = caption_filter(events) + badge + f",fade=t=in:st=0:d=0.6,fade=t=out:st={dur - 1.2:.2f}:d=1.2"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(OUT / "zoomed.mp4"), "-i", str(OUT / "audio.wav"),
                     "-vf", vf, "-c:v", "libx264", "-crf", "19", "-preset", "medium", "-pix_fmt", "yuv420p",
                     "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
