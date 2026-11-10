@@ -6,7 +6,7 @@
   {% if demo_accounts %}
   <div class="card">
     <h2>Demo accounts</h2>
-    <p class="muted small">One click, no password. Alan is a Sender agent; the rest are Runners. Shady is the cheater.</p>
+    <p class="muted small">One click, no password. Alan is a Sender agent; the rest are Runners.</p>
     <div class="demo-list">
       {% for a in demo_accounts %}
       <form method="post" action="/login/demo/{{ a.id }}">

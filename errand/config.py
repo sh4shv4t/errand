@@ -33,6 +33,7 @@ class Settings:
     db_path: str
     base_url: str
     demo: bool
+    villain: bool  # seed Shady, the model-swapping Runner, for integrity demos
     take_rate: float
     mystery_rate: float
     sim_latency_scale: float
@@ -53,6 +54,7 @@ def load_settings() -> Settings:
         # Render injects RENDER_EXTERNAL_URL, so hosted deploys need no URL config at all
         base_url=(env("ERRAND_BASE_URL") or env("RENDER_EXTERNAL_URL") or "http://localhost:8000").rstrip("/"),
         demo=env("ERRAND_DEMO", "1") == "1",
+        villain=env("ERRAND_VILLAIN", "0") == "1",
         take_rate=float(env("ERRAND_TAKE_RATE", "0.10")),
         mystery_rate=float(env("ERRAND_MYSTERY_RATE", "0.25")),
         sim_latency_scale=float(env("ERRAND_SIM_LATENCY_SCALE", "1.0")),

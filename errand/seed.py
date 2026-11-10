@@ -1,4 +1,4 @@
-"""Demo data: one Sender ("Alan"), four Runners, and their onboarding exams.
+"""Demo data: one Sender ("Alan"), three Runners (plus Shady with ERRAND_VILLAIN=1), and their onboarding exams.
 
 Seed credits are written as "demo seed credit" in the ledger so they are never confused
 with real PayPal money. If Ollama is running locally, its models are added as real Runners.
@@ -76,7 +76,7 @@ def seed(conn, with_ollama: bool = True) -> dict:
     keys["senders"] = {alan["id"]: {"name": alan["name"], "api_key": alan_key}}
 
     keys["runners"] = {}
-    specs = list(DEMO_RUNNERS)
+    specs = [s for s in DEMO_RUNNERS if s["id"] != "run_shady" or config.get().villain]
     scale = config.get().sim_latency_scale
     config.configure(sim_latency_scale=0.0)  # demo exams run instantly; real Runners keep real latency
     if with_ollama:
