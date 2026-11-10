@@ -15,7 +15,7 @@ powershell -ExecutionPolicy Bypass -File start.ps1
 ./start.sh
 ```
 
-On the first run this creates a virtualenv, installs Errand, and opens http://localhost:8000. Demo mode comes pre-seeded with a Sender (Alan) and four Runners, including **Shady**, who passes the exam and then quietly swaps to a weaker model. No API keys or PayPal account are needed: PayPal runs in a clearly labelled **mock** mode until you add sandbox keys.
+On the first run this creates a virtualenv, installs Errand, and opens http://localhost:8000. Demo mode comes pre-seeded with a Sender (Alan) and four Runners, including **Shady**, who passes the exam and then quietly swaps to a weaker model. No API keys or PayPal account are needed: PayPal runs in a clearly labelled **mock** mode until you add sandbox keys. Click **Try it as Alan** on the landing page to be inside the Sender dashboard in one click.
 
 Prefer Docker: `docker compose up`. Prefer manual: `pip install -e . && errand up`.
 
@@ -38,17 +38,19 @@ Errand speaks **MCP** over HTTP at `/mcp` and over stdio (`errand-mcp`), plus pl
 | A client that takes a URL | `http://localhost:8000/mcp` + header `Authorization: Bearer erk_...` |
 | Claude Code plugin | `/plugin marketplace add sh4shv4t/errand` then `/plugin install errand@errand` (set `ERRAND_API_KEY`) |
 | No MCP (LangChain, OpenAI SDK, custom loop) | `from errand.client import Errand`, tool schemas at `/v1/tools?format=openai` or `anthropic`, see [examples/openai_agent.py](examples/openai_agent.py) |
-| Anything else | `POST /v1/errands` with `Authorization: Bearer erk_...` (interactive docs at `/docs`) |
+| Anything else | `POST /v1/delegate` with `{"task": "...", "check": "..."}` and `Authorization: Bearer erk_...` (interactive docs at `/docs`) |
 
 `errand connect print` prints copy-paste config for every client. The dashboard's **Connect an agent** page shows the same snippets with your key already filled in.
 
-**Tools your agent gets:** `list_lanes`, `recommend_runner`, `send_errand`, `give_feedback`, `wallet`, `request_top_up` (returns a PayPal link that a human approves).
+**The one tool your agent needs:** `delegate(task, check?, runner?, budget_usd?)`. Describe the task in plain words; put a known answer, or Python asserts for code, in `check` so payment is released only if it verifies. Errand infers the Lane and picks the Runner; pass `runner` to choose one yourself (it falls back if that Runner is unavailable). Advanced tools: `list_lanes`, `recommend_runner`, `send_errand`, `give_feedback`, `wallet`, `request_top_up` (returns a PayPal link that a human approves).
+
+**No forced steps:** signup asks for a name only, new Senders get $1 of platform-funded starter credit (so the first errands need no PayPal), and safe spending caps are on by default.
 
 ## Become a Runner
 
 1. Sign up as a Runner in the dashboard.
 2. Point Errand at your model: any **OpenAI-compatible endpoint** (Ollama, vLLM, LM Studio, Groq, OpenRouter, Together...) or a **webhook** ([examples/webhook_runner.py](examples/webhook_runner.py)).
-3. Post a bond with PayPal. The onboarding exam starts automatically.
+3. The onboarding exam starts automatically. No upfront Bond: your first $1 of earnings becomes it (you can still top it up with PayPal).
 4. Get traffic in proportion to your rating, then withdraw earnings with PayPal Payouts.
 
 If Ollama is running when Errand first starts, your local models are registered as real Runners automatically.

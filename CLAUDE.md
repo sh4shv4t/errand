@@ -32,14 +32,14 @@ Errand (unit of work), Sender (consumer), Runner (provider), Lane (task category
 
 ## Code map (MVP, branch feat/end-to-end-mvp)
 
-- `errand/service.py`: errand lifecycle, escrow, PayPal flows, read models. Start here.
+- `errand/service.py`: errand lifecycle, escrow, PayPal flows, read models. Start here. `delegate()` is the one-call path (`infer_errand()` picks the Lane), `send_errand(runner=...)` pins a Runner, `_runner_pay()` fills the Bond from first earnings, new Senders get `STARTER_CREDIT`.
 - `errand/integrity.py`: onboarding exam, mystery errands, swap detection and slashing.
 - `errand/dispatch.py`, `errand/ratings.py`, `errand/tiers.py`, `errand/lanes.py`, `errand/taskbank.py`.
 - `errand/ledger.py`: double-entry ledger; amounts are integer micro-dollars.
 - `errand/paypal.py`: Orders v2 / Authorizations / Payouts, with a mock twin when no sandbox keys are set.
 - `errand/app.py`: REST API (`/v1`), PayPal return handlers, dashboard pages, remote MCP at `/mcp`.
 - `errand/mcp_server.py` (stdio + HTTP), `errand/connect.py` (`errand connect`), `errand/client.py` (SDK), `errand/tools.py` (schemas).
-- `errand/templates`, `errand/static`: server-rendered dashboard, AG Grid from CDN, no build step.
+- `errand/templates`, `errand/static`: server-rendered dashboard, AG Grid from CDN, no build step. Styled per `docs/UI_BRANDING.md` (tokens at the top of `app.css`; scroll and hover interactions in `app.js`).
 - `plugin/` + `.claude-plugin/marketplace.json`: Claude Code plugin.
 - Tests: `pytest` (core, API, integrations). Demo: `errand demo`.
 
