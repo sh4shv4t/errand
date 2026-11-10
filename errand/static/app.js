@@ -78,18 +78,6 @@
     links.addEventListener("mouseleave", () => { pill.style.opacity = "0"; });
   }
 
-  // footer palette switcher (palettes are defined at the end of app.css)
-  const paletteBtns = $$(".palettes button");
-  const markPalette = () => paletteBtns.forEach((b) =>
-    b.setAttribute("aria-pressed", String((document.documentElement.dataset.palette || "") === b.dataset.palette)));
-  paletteBtns.forEach((b) => b.addEventListener("click", () => {
-    if (b.dataset.palette) document.documentElement.dataset.palette = b.dataset.palette;
-    else document.documentElement.removeAttribute("data-palette");
-    try { localStorage.setItem("errand-palette", b.dataset.palette); } catch (e) { /* private mode: palette just won't persist */ }
-    markPalette();
-  }));
-  markPalette();
-
   function countTo(el, from, to, { prefix = "", suffix = "", decimals = 0 } = {}) {
     if (!el) return;
     const fmt = (v) => prefix + Number(v).toFixed(decimals) + suffix;

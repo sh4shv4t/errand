@@ -34,7 +34,7 @@ Errand is a money product (escrow, PayPal, slashing) wearing a friendly name. Th
 
 ## 2. Color
 
-*Six alternative trios (PayPal Blue, Night Forest, Ink and Mandarin, Ultramarine and Volt, Teal and Terracotta, Plum and Peach) are live behind the footer switcher or `?palette=<key>`; see "Palette options" in `docs/BRANDING.md`. This section documents the default.*
+*Six alternative trios (PayPal Blue, Night Forest, Ink and Mandarin, Ultramarine and Volt, Teal and Terracotta, Plum and Peach) are kept as potential options and can be previewed with `?palette=<key>`; see "Palette options" in `docs/BRANDING.md`. Forest is the chosen default and is what this section documents.*
 
 ### 2.1 Brand palette
 

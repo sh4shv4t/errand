@@ -381,7 +381,7 @@ ul.big b { font-weight: 600; }
 .cta { margin: 96px 0 24px; padding: 64px 24px; text-align: center; border-radius: 28px; background: var(--paper-deep); }
 .cta h2 { font-size: clamp(28px, 4vw, 46px); line-height: 1.08; letter-spacing: -0.03em; margin: 0 auto 8px; max-width: 760px; }
 
-/* ---------- palettes: try them with ?palette=paypal or the footer switcher (docs/BRANDING.md) ---------- */
+/* ---------- alternative palettes, previewed with ?palette=<key> (docs/BRANDING.md); Forest is the default ---------- */
 :root[data-palette="paypal"] { --paper: #F5F7FA; --card: #FFFFFF; --paper-deep: #E6ECF5; --forest: #003087; --on-forest: #FFFFFF; --ink: #0B1F3A; --moss: #4A5B75; --mandarin: #FFC439; --on-accent: #0B1F3A; --mandarin-deep: #0062C4; --on-accent-hover: #FFFFFF; --crest: #FFC439; --forest-wash: color-mix(in srgb, #003087 12%, transparent); --line: rgba(11, 31, 58, 0.12); --line-strong: rgba(11, 31, 58, 0.22); --line-soft: rgba(11, 31, 58, 0.07); color-scheme: light; }
 :root[data-palette="night"] { --paper: #0B2A21; --card: #12352A; --paper-deep: #1A3D31; --forest: #7FD1B0; --on-forest: #0B2A21; --ink: #F4F0E6; --moss: #9DB3AA; --mandarin: #E0F354; --on-accent: #0B2A21; --mandarin-deep: #E0F354; --on-accent-hover: #0B2A21; --crest: #E0F354; --forest-wash: color-mix(in srgb, #7FD1B0 12%, transparent); --line: rgba(244, 240, 230, 0.12); --line-strong: rgba(244, 240, 230, 0.22); --line-soft: rgba(244, 240, 230, 0.07); color-scheme: dark; }
 :root[data-palette="ink"] { --paper: #F6F5F1; --card: #FFFFFF; --paper-deep: #EAE8E1; --forest: #121212; --on-forest: #F6F5F1; --ink: #121212; --moss: #5F5E5A; --mandarin: #FD550A; --on-accent: #121212; --mandarin-deep: #B83F0A; --on-accent-hover: #FFFFFF; --crest: #FD550A; --forest-wash: color-mix(in srgb, #121212 12%, transparent); --line: rgba(18, 18, 18, 0.12); --line-strong: rgba(18, 18, 18, 0.22); --line-soft: rgba(18, 18, 18, 0.07); color-scheme: light; }
@@ -392,11 +392,6 @@ ul.big b { font-weight: 600; }
 :root[data-palette] .btn.accent, :root[data-palette] button.accent { color: var(--on-accent); }
 :root[data-palette] .btn.accent:hover, :root[data-palette] button.accent:hover { color: var(--on-accent-hover); }
 
-.palettes { display: inline-flex; gap: 6px; align-items: center; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
-.palettes button { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid var(--line-strong);
-  background: linear-gradient(135deg, var(--a) 0 50%, var(--b) 50% 100%); }
-.palettes button:hover { transform: scale(1.12); background: linear-gradient(135deg, var(--a) 0 50%, var(--b) 50% 100%); border-color: var(--ink); }
-.palettes button[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
 .band .bandsub { font-size: clamp(20px, 2.4vw, 26px); font-weight: 500; letter-spacing: -0.02em; margin: 56px 0 0; }
 .costbars.models { margin-top: 20px; }
 .costbars.models .cb span { font-size: 13px; }
