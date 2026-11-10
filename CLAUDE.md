@@ -33,7 +33,8 @@ Errand (unit of work), Sender (consumer), Runner (provider), Lane (task category
 ## Code map (MVP, branch feat/end-to-end-mvp)
 
 - `errand/service.py`: errand lifecycle, escrow, PayPal flows, read models. Start here. `delegate()` is the one-call path (`infer_errand()` picks the Lane), `send_errand(runner=...)` pins a Runner, `_runner_pay()` fills the Bond from first earnings, new Senders get `STARTER_CREDIT`.
-- `errand/integrity.py`: onboarding exam, mystery errands, swap detection and slashing.
+- `errand/integrity.py`: onboarding exam, mystery errands, swap detection and slashing. Shady (the swapper) is only seeded with `ERRAND_VILLAIN=1` or `errand demo --villain`; the public site mentions cheaters in one line only.
+- `errand/bench.py` + `errand bench`: real-model benchmark over the task bank, per-Lane routing, writes `static/bench.json` for the landing page.
 - `errand/dispatch.py`, `errand/ratings.py`, `errand/tiers.py`, `errand/lanes.py`, `errand/taskbank.py`.
 - `errand/ledger.py`: double-entry ledger; amounts are integer micro-dollars.
 - `errand/paypal.py`: Orders v2 / Authorizations / Payouts, with a mock twin when no sandbox keys are set.

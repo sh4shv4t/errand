@@ -15,7 +15,7 @@ powershell -ExecutionPolicy Bypass -File start.ps1
 ./start.sh
 ```
 
-On the first run this creates a virtualenv, installs Errand, and opens http://localhost:8000. Demo mode comes pre-seeded with a Sender (Alan) and four Runners, including **Shady**, who passes the exam and then quietly swaps to a weaker model. No API keys or PayPal account are needed: PayPal runs in a clearly labelled **mock** mode until you add sandbox keys. Click **Try it as Alan** on the landing page to be inside the Sender dashboard in one click.
+On the first run this creates a virtualenv, installs Errand, and opens http://localhost:8000. Demo mode comes pre-seeded with a Sender (Alan) and three specialist Runners. No API keys or PayPal account are needed: PayPal runs in a clearly labelled **mock** mode until you add sandbox keys. Click **Try it as Alan** on the landing page to be inside the Sender dashboard in one click.
 
 Prefer Docker: `docker compose up`. Prefer manual: `pip install -e . && errand up`.
 
@@ -25,7 +25,15 @@ See the whole story in your terminal:
 errand demo
 ```
 
-That runs 40 errands. Mystery errands audit the Runners, Shady gets caught and slashed, and the receipt prints at the end, for example: *30/30 verified, 84% cheaper than the frontier estimate, ledger balanced.*
+That runs 40 errands, audits the Runners with hidden test questions, and prints the receipt at the end, for example: *39/40 verified, 82% cheaper than the frontier estimate, ledger balanced.* Add `--villain` to also seed Shady, a Runner that swaps to a weaker model after its exam, and watch it get caught and slashed.
+
+## Benchmark real models
+
+```bash
+errand bench --model "qwen2.5:1.5b,qwen2.5-coder:1.5b,phi3:mini" --hardware "RTX 3050 laptop GPU, 4 GB"
+```
+
+Runs every task-bank item through each model (via Ollama or any OpenAI-compatible endpoint), checks every answer, and routes each Lane to the model that did best on it, the way Errand's dispatch would. Results go to `errand/static/bench.json`, which the landing page reads. Accuracy, speed and Errand cost are measured; the frontier price per answer is an estimate.
 
 ## Connect your agent (any client)
 
@@ -84,7 +92,8 @@ The design rationale and citations are in [docs/RESEARCH.md](docs/RESEARCH.md). 
 ```
 errand up                 start and open the dashboard
 errand serve [--port]     start the gateway only
-errand demo [-n 40]       scripted session with a printed receipt
+errand demo [-n 40]       scripted session with a printed receipt (--villain adds Shady)
+errand bench --model ... benchmark real models, save numbers for the landing page
 errand connect [client]   wire Errand into MCP clients (or: all, print)
 errand keys               show demo API keys
 errand reset --yes        delete the local database
