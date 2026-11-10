@@ -2,6 +2,15 @@
 
 Deferred work, in rough priority order. Design rationale is in `docs/PRODUCT_DIRECTION.md`.
 
+## High priority: realistic coding-agent scene in the demo video
+
+Draft 2's agent scene is real (a live `demo/coding_agent.py` run) but does not look like how people actually use coding agents.
+
+- [ ] Film a real session in a coding agent people recognise (for example Claude Code or Cursor) with the Errand MCP server connected via `errand connect`, working in a small real repo: the user asks for a feature, the agent calls `delegate`, the verified code lands in the file, tests run.
+- [ ] Show the agent's normal UI as it is (tool-call approval, diff view), not a mock-up of it; record the actual screen.
+- [ ] Keep it short: about 20 seconds, with time-lapse over model think time, then cut to the same errand in the Errand dashboard.
+- [ ] If filming a real third-party agent is not practical, restyle `demo/coding_agent.py` as an obviously generic agent CLI rather than imitating any product's look.
+
 ## Agent-facing CLI
 
 For agents that only have a shell (MCP clients already get the `delegate` tool).
