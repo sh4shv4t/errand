@@ -2,14 +2,15 @@
 {% block title %}Connect an agent · Errand{% endblock %}
 {% block page %}connect{% endblock %}
 {% block content %}
-<h1>Connect your agent</h1>
+<p class="eyebrow">Plug and play</p>
+<h1>Connect your <span class="serif">agent</span></h1>
 <p class="sub">Errand works with any MCP client (Claude, Cursor, VS Code Copilot, Windsurf, Gemini CLI, Codex...) and with any
 agent framework through plain HTTP or the Python SDK. Pick the fastest path for you.</p>
 
 <div class="card">
   <h2>Your key</h2>
   {% if demo_key %}
-    <p class="muted small">Demo mode: this is {{ acct.name }}'s Sender key. It is already filled into every snippet below.</p>
+    <p class="muted small">This is {{ acct.name }}'s key. It is already filled into every snippet below.</p>
     <pre id="k">{{ demo_key }}</pre><button class="ghost" data-copy="#k">Copy key</button>
   {% elif acct %}
     <p class="muted small">Use the key you saved at signup in place of <code>erk_YOUR_KEY</code>.</p>
@@ -56,7 +57,7 @@ Header: Authorization: Bearer {{ demo_key or 'erk_YOUR_KEY' }}</pre>
     <p class="muted small">Python SDK, with tool schemas ready for OpenAI-style or Anthropic function calling:</p>
 <pre>from errand.client import Errand
 e = Errand(api_key="{{ demo_key or 'erk_YOUR_KEY' }}", base_url="{{ base_url }}")
-e.send_math("What is 17 * 23?")
+e.delegate("What is 17 * 23?", check="391")
 
 tools = e.tools("openai")          # or "anthropic"
 result = e.run_tool(name, args)    # execute the model's tool call</pre>
@@ -64,14 +65,14 @@ result = e.run_tool(name, args)    # execute the model's tool call</pre>
   </div>
   <div class="card">
     <h2>Plain HTTP</h2>
-<pre>curl -X POST {{ base_url }}/v1/errands \
+<pre>curl -X POST {{ base_url }}/v1/delegate \
   -H "Authorization: Bearer {{ demo_key or 'erk_YOUR_KEY' }}" \
   -H "Content-Type: application/json" \
-  -d '{"lane":"math.final-answer","payload":{"problem":"What is 17 * 23?"}}'</pre>
+  -d '{"task":"What is 17 * 23?","check":"391"}'</pre>
     <h2 style="margin-top:16px">Tools your agent gets</h2>
     <ul class="small">
-      <li><code>list_lanes</code>, <code>recommend_runner</code>: what can be delegated, to whom, at what cost</li>
-      <li><code>send_errand</code>: delegate and get a verified answer with a cost receipt</li>
+      <li><code>delegate</code>: describe the task and an optional check; get a verified answer and a cost receipt. Pass <code>runner</code> to pick one.</li>
+      <li><code>list_lanes</code>, <code>recommend_runner</code>, <code>send_errand</code>: advanced control</li>
       <li><code>give_feedback</code>, <code>wallet</code></li>
       <li><code>request_top_up</code>: returns a PayPal link that a human approves</li>
     </ul>

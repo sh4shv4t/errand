@@ -40,7 +40,7 @@
     return grids[sel];
   }
   const badge = (text, kind) => `<span class="badge ${kind || ""}">${esc(text)}</span>`;
-  const statusBadge = (s) => badge(s, { active: "ok", completed: "ok", passed: "ok", delivered: "ok", suspended: "bad", failed: "bad", rejected: "bad", onboarding: "warn", needs_bond: "warn", running: "warn" }[s]);
+  const statusBadge = (s) => badge(s, { active: "ok", completed: "ok", passed: "ok", delivered: "ok", suspended: "bad", failed: "bad", rejected: "bad", onboarding: "warn", needs_bond: "warn", running: "warn", pinned: "ok" }[s]);
 
   async function withBusy(btn, fn) {
     const label = btn.textContent;
@@ -52,6 +52,49 @@
   $$("[data-copy]").forEach((b) => b.addEventListener("click", () => {
     navigator.clipboard.writeText($(b.dataset.copy).textContent.trim()).then(() => toast("Copied", "ok"));
   }));
+
+  // ---------- motion: progress line, nav, hover pill, reveals, counters (docs/UI_BRANDING.md section 5) ----------
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const nav = $(".nav"), bar = $(".progress");
+  const scrollFx = [];
+  function onScroll() {
+    const max = document.documentElement.scrollHeight - innerHeight;
+    if (bar) bar.style.transform = `scaleX(${max > 0 ? scrollY / max : 0})`;
+    if (nav) nav.classList.toggle("scrolled", scrollY > 24);
+    scrollFx.forEach((fn) => fn());
+  }
+  let ticking = false;
+  addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; onScroll(); }); } }, { passive: true });
+  onScroll();
+
+  const links = $(".nav .links"), pill = $(".nav .links .pill");
+  if (links) $$("a", links).forEach((a) => { if (location.pathname === a.getAttribute("href")) a.classList.add("active"); });
+  if (links && pill && matchMedia("(hover: hover)").matches) {
+    $$("a", links).forEach((a) => a.addEventListener("mouseenter", () => {
+      pill.style.width = a.offsetWidth + "px";
+      pill.style.transform = `translateX(${a.offsetLeft}px)`;
+      pill.style.opacity = "1";
+    }));
+    links.addEventListener("mouseleave", () => { pill.style.opacity = "0"; });
+  }
+
+  function countTo(el, from, to, { prefix = "", suffix = "", decimals = 0 } = {}) {
+    if (!el) return;
+    const fmt = (v) => prefix + Number(v).toFixed(decimals) + suffix;
+    if (reduced || from === to) { el.textContent = fmt(to); return; }
+    const t0 = performance.now(), dur = 900;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = fmt(from + (to - from) * e);
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  const io = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
+    entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } });
+  }, { rootMargin: "0px 0px -12% 0px" }) : null;
+  $$(".reveal, .mark").forEach((el) => (io ? io.observe(el) : el.classList.add("in")));
 
   // ---------- leaderboard (index + leaderboard pages) ----------
   const lbCols = [
@@ -78,21 +121,68 @@
     if (tabs.length) await load(tabs[0].dataset.lane);
   }
 
+  // ---------- landing ----------
+  async function initIndex() {
+    // the How-it-works line draws itself as you scroll, lighting each step it reaches
+    const howto = $(".howto"), trail = $(".howto .trail path"), steps = $$(".howto .step");
+    if (howto && trail) scrollFx.push(() => {
+      const r = howto.getBoundingClientRect();
+      const k = Math.max(0, Math.min(1, (innerHeight * 0.85 - r.top) / (r.height + innerHeight * 0.25)));
+      trail.style.strokeDashoffset = String(1 - k);
+      steps.forEach((s, i) => s.classList.toggle("lit", k >= (i + 0.5) / steps.length));
+    });
+    // Shady: beats light up as they cross the middle of the screen; the last one gets him caught
+    const card = $("#shady-card");
+    if (io && card) {
+      const beatIo = new IntersectionObserver((entries) => entries.forEach((en) => {
+        en.target.classList.toggle("lit", en.isIntersecting);
+        if (en.target.dataset.beat === "3" && en.isIntersecting && !card.classList.contains("caught")) {
+          card.classList.add("caught");
+          $("#shady-status").className = "badge bad"; $("#shady-status").textContent = "suspended";
+          $("#shady-bond").textContent = "$1.00 slashed and refunded to Senders";
+        }
+      }), { rootMargin: "-40% 0px -40% 0px" });
+      $$(".beat").forEach((b) => beatIo.observe(b));
+    }
+    onScroll();
+
+    const st = await api("/v1/stats");
+    st.verified_pct = st.errands ? Math.round((100 * st.verified) / st.errands) : 0;
+    $$("[data-count]").forEach((el) => {
+      const go = () => countTo(el, 0, st[el.dataset.count] || 0,
+        { prefix: el.dataset.prefix || "", suffix: el.dataset.suffix || "", decimals: Number(el.dataset.decimals || 0) });
+      if (!io) return go();
+      const o = new IntersectionObserver((en) => { if (en[0].isIntersecting) { go(); o.disconnect(); } });
+      o.observe(el);
+    });
+    const track = $("#receipts-track");
+    if (track && st.recent.length) {
+      const html = st.recent.map((r) => `<div class="mini-receipt">
+        <div class="r"><span>${esc(r.lane)}</span><span>${r.verdict === "passed" ? "verified" : esc(r.verdict)}</span></div>
+        <div class="a">${esc(r.answer)}</div>
+        <div class="r"><span>${esc(r.runner)}</span><span>${usd(r.total_usd, 5)}</span></div>
+        <div class="r"><span>frontier est.</span><span>${usd(r.baseline_usd, 3)}</span></div></div>`).join("");
+      track.innerHTML = html + html;
+      if (!reduced) track.animate([{ transform: "translateX(0)" }, { transform: "translateX(-50%)" }],
+        { duration: 4000 * st.recent.length, iterations: Infinity });
+    } else if (track) track.parentElement.hidden = true;
+    await initLeaderboard();
+  }
+
   // ---------- sender ----------
   async function initSender() {
-    let demoTasks = null;
-    const laneSel = $("#lane");
+    let demoTasks = null, exampleTurn = 0, savedShown = 0;
 
     async function refresh() {
       const me = await api("/v1/me");
       const b = me.balances, a = me.activity;
       $("#k-wallet").textContent = usd(b.wallet || 0, 2);
-      $("#k-spent").textContent = usd(a.spend_30d_usd, 4);
-      $("#k-errands").textContent = `${a.errands_30d} errands`;
-      $("#k-saved").textContent = usd(a.saved_30d_usd, 4);
+      $("#k-spent").textContent = `${usd(a.spend_30d_usd, 4)} spent`;
+      $("#k-errands").textContent = a.errands_30d;
+      countTo($("#k-saved"), savedShown, a.saved_30d_usd, { prefix: "$", decimals: 4 });
+      savedShown = a.saved_30d_usd;
       $("#k-tier").textContent = me.tier.name;
       $("#k-tier-next").textContent = me.tier.next ? `${usd(me.tier.next.spend_needed_usd, 2)} more to ${me.tier.next.name}` : "top tier";
-      $("#k-div").textContent = usd(a.dividends_usd, 4);
       const acc = me.account;
       $("#cap1").value = (acc.cap_per_errand / 1e6).toString();
       $("#capd").value = (acc.cap_daily / 1e6).toString();
@@ -101,15 +191,13 @@
       const errands = await api("/v1/errands");
       grid("#errands-grid", [
         { field: "created_at", headerName: "When", valueFormatter: (p) => when(p.value), minWidth: 160 },
-        { field: "lane", minWidth: 140 },
-        { field: "kind", maxWidth: 100 },
-        { field: "status", cellRenderer: (p) => statusBadge(p.value), maxWidth: 120 },
-        { field: "verdict", cellRenderer: (p) => (p.value ? statusBadge(p.value) : ""), maxWidth: 120 },
+        { field: "lane", minWidth: 140, cellClass: "mono" },
+        { field: "status", cellRenderer: (p) => statusBadge(p.value), maxWidth: 130 },
+        { field: "verdict", cellRenderer: (p) => (p.value ? statusBadge(p.value) : ""), maxWidth: 130 },
         { field: "answer", minWidth: 90 },
         { headerName: "Runner", valueGetter: (p) => p.data.runner && p.data.runner.name },
-        { field: "total_usd", headerName: "Cost", valueFormatter: (p) => usd(p.value) },
-        { field: "saved_usd", headerName: "Saved", valueFormatter: (p) => usd(p.value) },
-        { field: "latency_ms", headerName: "ms", maxWidth: 90 },
+        { field: "total_usd", headerName: "Cost", valueFormatter: (p) => usd(p.value), cellClass: "mono" },
+        { field: "saved_usd", headerName: "Saved", valueFormatter: (p) => usd(p.value), cellClass: "mono" },
         { field: "policy", maxWidth: 110 },
         { headerName: "Feedback", minWidth: 130, cellRenderer: (p) => {
           if (p.data.status !== "completed") return "";
@@ -120,75 +208,82 @@
       grid("#ops-grid", opsCols, await api("/v1/paypal/ops"));
     }
 
-    function showLaneFields() {
-      const code = laneSel.value === "code.python.tests";
-      $("#fields-math").hidden = code;
-      $("#fields-code").hidden = !code;
-      refreshRec();
-    }
-    function payload() {
-      if (laneSel.value === "code.python.tests") {
-        return { function_name: $("#function_name").value, spec: $("#spec").value, tests: $("#tests").value };
+    async function loadRunners() {
+      const sel = $("#runner");
+      for (const r of await api("/v1/runners")) {
+        const o = document.createElement("option");
+        o.value = r.name;
+        const prices = Object.entries(r.lanes).map(([l, v]) => `${l.split(".")[0]} ${usd(v)}`).join(", ");
+        o.textContent = `${r.name} · ${prices}`;
+        sel.appendChild(o);
       }
-      const p = { problem: $("#problem").value };
-      if ($("#expected").value.trim()) p.expected = $("#expected").value.trim();
-      return p;
-    }
-    async function refreshRec() {
-      const preset = $("#preset").value || "balanced";
-      const r = await api(`/v1/recommend?lane=${encodeURIComponent(laneSel.value)}&preset=${preset}`);
-      grid("#rec-grid", [
-        { field: "name", headerName: "Runner" },
-        { field: "price_usd", headerName: "Price", valueFormatter: (p) => usd(p.value) },
-        { field: "expected_pass_rate", headerName: "Pass", valueFormatter: (p) => pct(p.value) },
-        { field: "p95_latency_ms", headerName: "p95 ms" },
-        { field: "score", headerName: "Score" },
-      ], r.runners);
-    }
-    function renderResult(e) {
-      const ok = e.status === "completed";
-      $("#result").innerHTML = `
-        <div class="head">${statusBadge(e.status)} ${e.verdict ? statusBadge(e.verdict) : ""}
-          ${e.runner ? `<span>by <b>${esc(e.runner.name)}</b> <span class="muted">${esc(e.runner.model)}</span></span>` : ""}</div>
-        ${ok ? `<div class="receipt">
-          <div><span>Answer</span><span>${esc(e.answer ?? "")}</span></div>
-          <div><span>Runner price</span><span>${usd(e.price_usd, 6)}</span></div>
-          <div><span>Errand fee</span><span>${usd(e.fee_usd, 6)}</span></div>
-          ${e.dividend_usd ? `<div><span>Data dividend</span><span>-${usd(e.dividend_usd, 6)}</span></div>` : ""}
-          <div class="total"><span>You paid</span><span>${usd(e.total_usd, 6)}</span></div>
-          <div><span>Frontier estimate</span><span>${usd(e.baseline_usd, 6)}</span></div>
-          <div><span>Latency, attempts, policy</span><span>${e.latency_ms} ms, ${e.attempts}, ${esc(e.policy)}</span></div>
-        </div>` : `<p class="muted">${esc(e.detail || "")}</p>`}
-        ${ok ? `<p class="small muted">${esc(e.detail || "")}</p><details><summary class="small">Full output</summary><pre>${esc(e.output)}</pre></details>` : ""}`;
     }
 
-    laneSel.addEventListener("change", showLaneFields);
-    $("#preset").addEventListener("change", refreshRec);
+    function body() {
+      const b = { task: $("#task").value };
+      if ($("#check").value.trim()) b.check = $("#check").value.trim();
+      if ($("#runner").value) b.runner = $("#runner").value;
+      if ($("#budget").value) b.budget_usd = Number($("#budget").value);
+      return b;
+    }
+
+    function showPending() {
+      $("#result").innerHTML = `<div class="head"><span class="badge live">running</span>
+        <span class="escrow" title="Your payment is held until the result verifies">held in escrow</span></div>`;
+    }
+
+    function renderResult(e) {
+      const ok = e.status === "completed";
+      const stamp = !ok ? ["failed", "bad"] : e.verdict === "passed" ? ["verified", ""] : ["delivered", "delivered"];
+      const answer = e.lane === "code.python.tests" ? "Function written, tests passed" : (e.answer ?? "");
+      $("#result").innerHTML = `
+        <div class="head">${statusBadge(e.status)}
+          ${ok ? `<span class="escrow">held in escrow</span>` : `<span class="badge plain">refunded, not charged</span>`}
+          ${e.runner ? `<span class="small">by <b>${esc(e.runner.name)}</b> <span class="muted mono">${esc(e.runner.model)}</span></span>` : ""}</div>
+        <div class="receipt-wrap printing">
+          <span class="stamp ${stamp[1]}">${stamp[0]}</span>
+          <div class="receipt">
+            ${ok ? `<div class="answer">${esc(answer)}</div>
+            <div class="line"><span>Lane</span><span>${esc(e.lane)}</span></div>
+            <div class="line"><span>Runner price</span><span>${usd(e.price_usd, 6)}</span></div>
+            <div class="line"><span>Errand fee</span><span>${usd(e.fee_usd, 6)}</span></div>
+            ${e.dividend_usd ? `<div class="line"><span>Data dividend</span><span>-${usd(e.dividend_usd, 6)}</span></div>` : ""}
+            <div class="line total"><span>You paid</span><span>${usd(e.total_usd, 6)}</span></div>
+            <div class="line"><span>Frontier estimate</span><span>${usd(e.baseline_usd, 6)}</span></div>
+            <div class="line"><span>Latency · attempts · policy</span><span>${e.latency_ms} ms · ${e.attempts} · ${esc(e.policy)}</span></div>
+            <div class="line"><span>Errand</span><span>${esc(e.id)}</span></div>`
+            : `<div class="answer">No charge</div><p class="muted" style="margin:0">${esc(e.detail || "")}</p>`}
+          </div>
+        </div>
+        ${ok ? `<p class="small muted">${esc(e.detail || "")}</p><details><summary class="small">Full output</summary><pre>${esc(e.output)}</pre></details>` : ""}`;
+      const chip = $("#result .escrow");
+      if (chip) setTimeout(() => { chip.classList.add("released"); chip.textContent = "released to Runner"; }, 700);
+    }
+
     $("#example-btn").addEventListener("click", async () => {
       demoTasks = demoTasks || (await api("/v1/demo/tasks"));
-      const list = demoTasks[laneSel.value];
+      const code = exampleTurn++ % 2 === 1;
+      const list = demoTasks[code ? "code.python.tests" : "math.final-answer"];
       const t = list[Math.floor(Math.random() * list.length)];
-      if (laneSel.value === "code.python.tests") {
-        $("#function_name").value = t.function_name; $("#spec").value = t.spec; $("#tests").value = t.tests;
-      } else {
-        $("#problem").value = t.problem; $("#expected").value = t.expected;
-      }
+      $("#task").value = code ? `${t.spec} Name the function ${t.function_name}.` : t.problem;
+      $("#check").value = code ? t.tests : t.expected;
+      $("#task").focus();
     });
     $("#errand-form").addEventListener("submit", (ev) => {
       ev.preventDefault();
       withBusy($("#send-btn"), async () => {
-        const body = { lane: laneSel.value, payload: payload() };
-        if ($("#preset").value) body.preset = $("#preset").value;
-        if ($("#budget").value) body.budget_usd = Number($("#budget").value);
-        const e = await api("/v1/errands", { method: "POST", body });
-        renderResult(e);
-        await refresh(); await refreshRec();
+        showPending();
+        try {
+          renderResult(await api("/v1/delegate", { method: "POST", body: body() }));
+        } catch (e) { $("#result").innerHTML = ""; throw e; }
+        await refresh();
       });
     });
     $("#bounty-btn").addEventListener("click", () => withBusy($("#bounty-btn"), async () => {
       const amt = prompt("Bounty amount in USD (charged through PayPal only if the work is verified):", "2");
       if (!amt) return;
-      const r = await api("/v1/bounties", { method: "POST", body: { lane: laneSel.value, payload: payload(), amount_usd: Number(amt) } });
+      const b = body();
+      const r = await api("/v1/bounties", { method: "POST", body: { task: b.task, check: b.check, amount_usd: Number(amt) } });
       location.href = r.approve_url;
     }));
     $("#topup-btn").addEventListener("click", () => withBusy($("#topup-btn"), async () => {
@@ -211,8 +306,7 @@
       try { await api(`/v1/errands/${a.dataset.id}/feedback`, { method: "POST", body: { accepted: a.dataset.fb === "1" } }); refresh(); }
       catch (e) { toast(e.message, "bad"); }
     });
-    showLaneFields();
-    await refresh();
+    await Promise.all([refresh(), loadRunners()]);
   }
 
   const opsCols = [
@@ -249,7 +343,6 @@
       $("#min-bond").textContent = me.min_bond_usd.toFixed(2);
       const msgs = {
         unregistered: "Register your model below to get started.",
-        needs_bond: "Post your bond with PayPal to start the onboarding exam.",
         onboarding: "Onboarding exam in progress. This page refreshes automatically.",
         rejected: "Your model did not pass the onboarding exam. Update it and save to retry.",
         suspended: "Suspended: see the integrity flags below.",
@@ -317,7 +410,7 @@
       }
       try {
         await api("/v1/runner/profile", { method: "PUT", body: { declared_model: $("#model").value, kind: kindSel.value, config, lanes: lanesMap } });
-        toast("Saved. Exam starts as soon as your bond is posted.", "ok");
+        toast("Saved. The onboarding exam has started.", "ok");
         refresh();
       } catch (e) { toast(e.message, "bad"); }
     });
@@ -392,6 +485,6 @@
     return Promise.resolve();
   }
 
-  const inits = { connect: initConnect, index: initLeaderboard, leaderboard: initLeaderboard, sender: initSender, runner: initRunner, platform: initPlatform };
+  const inits = { connect: initConnect, index: initIndex, leaderboard: initLeaderboard, sender: initSender, runner: initRunner, platform: initPlatform };
   if (inits[page]) inits[page]().catch((e) => toast(e.message, "bad"));
 })();

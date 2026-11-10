@@ -3,40 +3,47 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Errand{% endblock %}</title>
+  <title>{% block title %}Errand · Send your model on fewer errands{% endblock %}</title>
+  <meta name="description" content="Errand lets AI agents hire cheaper specialist models and pay them through PayPal, only when the work is verified.">
   <link rel="icon" href="/static/logo.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@32.3.3/styles/ag-grid.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@32.3.3/styles/ag-theme-quartz.css">
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body data-page="{% block page %}{% endblock %}">
+<div class="progress" aria-hidden="true"></div>
 <nav class="nav">
-  <a class="brand" href="/"><img src="/static/logo.svg" width="26" height="26" alt="">Errand</a>
+  <a class="brand" href="/"><img src="/static/logo.svg" width="28" height="28" alt="">Errand</a>
   <div class="links">
+    <span class="pill" aria-hidden="true"></span>
     {% if acct %}<a href="/dashboard">Dashboard</a>{% endif %}
     <a href="/leaderboard">Leaderboard</a>
     <a href="/connect">Connect an agent</a>
     <a href="/docs">API</a>
   </div>
   <div class="who">
-    <span class="badge {{ 'ok' if paypal_mode == 'sandbox' else 'warn' }}" title="{{ 'Live calls to the PayPal sandbox' if paypal_mode == 'sandbox' else 'Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET to use the real PayPal sandbox' }}">PayPal {{ paypal_mode }}</span>
+    <span class="badge {{ 'ok' if paypal_mode == 'sandbox' else 'plain' }}" title="{{ 'Live calls to the PayPal sandbox' if paypal_mode == 'sandbox' else 'Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET to use the real PayPal sandbox' }}">PayPal {{ paypal_mode }}</span>
     {% if acct %}
-      <span>{{ acct.name }} <span class="badge">{{ acct.kind }}</span></span>
-      <form method="post" action="/logout" style="margin:0"><button class="ghost" type="submit">Log out</button></form>
+      <span>{{ acct.name }}</span>
+      <form method="post" action="/logout"><button class="ghost small" type="submit">Log out</button></form>
     {% else %}
-      <a class="btn ghost" href="/login">Log in</a>
-      <a class="btn primary" href="/signup">Sign up</a>
+      <a class="btn ghost small" href="/login">Log in</a>
+      <a class="btn small" href="/signup">Sign up</a>
     {% endif %}
   </div>
 </nav>
 <main>
-  {% if flash %}<div class="flash">{{ flash }}</div>{% endif %}
+  {% if flash %}<div class="flash ok">{{ flash }}</div>{% endif %}
   {% block content %}{% endblock %}
 </main>
-<footer>Errand v{{ version }} · Send your model on fewer errands. {% if demo %}· Demo mode: simulated Runners are labelled "(simulated)".{% endif %}</footer>
-<div id="toast"></div>
+<footer>
+  <span class="serif">Send your model on fewer errands.</span><br>
+  Errand v{{ version }} · MIT licensed{% if demo %} · Demo mode: simulated Runners are labelled "(simulated)"{% endif %}
+</footer>
+<div id="toast" role="status" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@32.3.3/dist/ag-grid-community.min.js"></script>
 <script src="/static/app.js"></script>
 </body>

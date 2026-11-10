@@ -2,15 +2,16 @@
 {% block title %}Runner dashboard · Errand{% endblock %}
 {% block page %}runner{% endblock %}
 {% block content %}
+<p class="eyebrow">Runner dashboard</p>
 <h1>{{ acct.name }}</h1>
-<p class="sub">Runner dashboard: register your model, pass the exam, earn per verified errand, withdraw through PayPal.</p>
+<p class="sub">Point Errand at your model, pass the onboarding exam, earn on every verified errand, cash out with PayPal.</p>
 
 <div id="status-banner"></div>
 
 <div class="kpis">
   <div class="kpi"><div class="label">Status</div><div class="value" id="k-status">...</div><div class="hint" id="k-model"></div></div>
-  <div class="kpi"><div class="label">Earnings</div><div class="value" id="k-earn">...</div><div class="hint">available to withdraw</div></div>
-  <div class="kpi"><div class="label">Bond</div><div class="value" id="k-bond">...</div><div class="hint">slashable stake</div></div>
+  <div class="kpi accent"><div class="label">Earnings</div><div class="value" id="k-earn">...</div><div class="hint">available to withdraw</div></div>
+  <div class="kpi"><div class="label">Bond</div><div class="value" id="k-bond">...</div><div class="hint">filled from your first earnings</div></div>
   <div class="kpi"><div class="label">Errands served</div><div class="value" id="k-served">...</div><div class="hint" id="k-gross"></div></div>
   <div class="kpi"><div class="label">Best rating</div><div class="value" id="k-rating">...</div><div class="hint">0 to 100</div></div>
 </div>
@@ -44,20 +45,20 @@
       <label>Lanes and price per errand (USD)</label>
       {% for l in lanes %}
       <div class="row" style="align-items:center">
-        <div style="flex:2"><label style="font-weight:500;margin:0"><input type="checkbox" class="lane-on" value="{{ l.id }}" style="width:auto"> {{ l.title }} <span class="mono muted small">{{ l.id }}</span></label></div>
-        <div><input type="number" class="lane-price" data-lane="{{ l.id }}" step="0.0001" min="0.0001" placeholder="0.0010"></div>
+        <div style="flex:2"><label style="font-weight:500;margin:0"><input type="checkbox" class="lane-on" value="{{ l.id }}" style="width:auto" checked> {{ l.title }} <span class="mono muted small">{{ l.id }}</span></label></div>
+        <div><input type="number" class="lane-price" data-lane="{{ l.id }}" step="0.0001" min="0.0001" value="{{ '%.4f' % (l.baseline_micros / 1e6 / 10) }}" aria-label="Price for {{ l.title }}"></div>
       </div>
       {% endfor %}
-      <div class="actions"><button class="primary" type="submit">Save and take the exam</button></div>
+      <div class="actions"><button class="accent" type="submit">Save and take the exam <span class="arrow">→</span></button></div>
     </form>
   </div>
 
   <div class="card">
     <h2>Bond</h2>
-    <p class="muted small">Post at least $<span id="min-bond">1.00</span> before you get traffic. It is slashed if you are caught serving a different model than the one that passed the exam.</p>
+    <p class="muted small">No upfront payment: your first $<span id="min-bond">1.00</span> of earnings becomes your Bond. It is slashed if you are caught serving a different model than the one that passed the exam. You can also top it up with PayPal to signal confidence.</p>
     <div class="row">
       <div><label for="bond-amt">Amount (USD)</label><input id="bond-amt" type="number" min="1" max="500" step="1" value="2"></div>
-      <div style="flex:0"><button class="paypal" id="bond-btn" type="button">Post bond with PayPal</button></div>
+      <div style="flex:0"><button class="paypal" id="bond-btn" type="button">Add to Bond with PayPal</button></div>
     </div>
     <h2 style="margin-top:20px">Withdraw earnings</h2>
     <p class="muted small">Sent with PayPal Payouts to your PayPal email.</p>
