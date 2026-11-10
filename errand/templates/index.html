@@ -37,29 +37,27 @@
 
 {% if bench %}
 <section class="band reveal" id="results">
-  <p class="eyebrow">Real benchmark · small models on a {{ bench.hardware or "laptop" }} · {{ bench.date }}</p>
+  <p class="eyebrow">Real benchmark · open models · {{ bench.date }}</p>
   <h2>Same answers. <span class="serif">{{ '%.0f' % bench.savings_pct }}%</span> cheaper.</h2>
   <div class="stats">
     <div class="stat"><div class="num hi" data-to="{{ bench.savings_pct }}" data-suffix="%">0</div><div class="lbl">cheaper than a frontier model</div></div>
-    <div class="stat"><div class="num" data-to="{{ bench.verified }}">0</div><div class="lbl">of {{ bench.tasks }} answers checked and correct</div></div>
-    <div class="stat"><div class="num" data-to="{{ bench.unpaid_wrong_answers }}">0</div><div class="lbl">wrong answers you never paid for</div></div>
-    <div class="stat"><div class="num" data-to="{{ (bench.median_ms / 1000) | round(1) }}" data-decimals="1" data-suffix="s">0</div><div class="lbl">typical answer time, on a laptop GPU</div></div>
+    <div class="stat"><div class="num" data-to="{{ (100 * bench.pass_rate) | round }}" data-suffix="%">0</div><div class="lbl">of answers right, and checked</div></div>
+    <div class="stat"><div class="num" data-to="0" data-prefix="$">$0</div><div class="lbl">paid for wrong answers</div></div>
   </div>
   <div class="costbars">
-    <div class="cb"><span>Frontier model</span><i style="--w:100%"></i><b class="mono">${{ '%.4f' % bench.frontier_cost_usd }}</b></div>
-    <div class="cb errand"><span>With Errand</span><i style="--w:{{ [100 * bench.errand_cost_usd / bench.frontier_cost_usd, 1.5] | max }}%"></i><b class="mono">${{ '%.4f' % bench.errand_cost_usd }}</b></div>
+    <div class="cb"><span>Frontier model</span><i style="--w:100%"></i><b class="mono">100%</b></div>
+    <div class="cb errand"><span>With Errand</span><i style="--w:{{ [100 * bench.errand_cost_usd / bench.frontier_cost_usd, 1.5] | max }}%"></i><b class="mono">{{ '%.0f' % (100 * bench.errand_cost_usd / bench.frontier_cost_usd) or '<1' }}%</b></div>
   </div>
   {% if bench.models %}
-  <h3 class="bandsub">Picking the right model per job beats <span class="serif">any</span> single model.</h3>
+  <h3 class="bandsub">The right model for each job beats <span class="serif">any</span> single model.</h3>
   <div class="costbars models">
     {% for m in bench.models | sort(attribute='verified', reverse=True) %}
-    <div class="cb"><span class="mono">{{ m.model }}</span><i style="--w:{{ 100 * m.pass_rate }}%"></i><b class="mono">{{ m.verified }}/{{ m.tasks }}</b></div>
+    <div class="cb"><span class="mono">{{ m.model }}</span><i style="--w:{{ 100 * m.pass_rate }}%"></i><b class="mono">{{ '%.0f' % (100 * m.pass_rate) }}%</b></div>
     {% endfor %}
-    <div class="cb errand"><span>Errand picks</span><i style="--w:{{ 100 * bench.pass_rate }}%"></i><b class="mono">{{ bench.verified }}/{{ bench.tasks }}</b></div>
+    <div class="cb errand"><span>Errand picks</span><i style="--w:{{ 100 * bench.pass_rate }}%"></i><b class="mono">{{ '%.0f' % (100 * bench.pass_rate) }}%</b></div>
   </div>
-  <p class="fine">Errand sent math to {{ bench.lanes['math.final-answer'].model }} and code to {{ bench.lanes['code.python.tests'].model }}, the best at each.</p>
   {% endif %}
-  <p class="fine">Accuracy, speed and Errand cost are measured. The frontier price per answer is an estimate. Run <code>errand bench</code> to reproduce.</p>
+  <p class="fine">{{ bench.tasks }} checked math and code tasks on {{ bench.hardware or "a laptop" }}. Accuracy and Errand cost are measured; the frontier price is an estimate. Run <code>errand bench</code> to reproduce.</p>
 </section>
 {% endif %}
 
