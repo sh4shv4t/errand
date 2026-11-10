@@ -12,6 +12,14 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@32.3.3/styles/ag-grid.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@32.3.3/styles/ag-theme-quartz.css">
   <link rel="stylesheet" href="/static/app.css">
+  <script>
+    // palette before first paint: ?palette=paypal wins, then the last one picked in the footer
+    (function () {
+      var p = new URLSearchParams(location.search).get("palette");
+      try { if (p === null) p = localStorage.getItem("errand-palette"); else localStorage.setItem("errand-palette", p); } catch (e) {}
+      if (p) document.documentElement.dataset.palette = p;
+    })();
+  </script>
 </head>
 <body data-page="{% block page %}{% endblock %}">
 <div class="progress" aria-hidden="true"></div>
@@ -41,7 +49,17 @@
 </main>
 <footer>
   <span class="serif">Send your model on fewer errands.</span><br>
-  Errand v{{ version }} · MIT licensed{% if demo %} · Demo mode: simulated Runners are labelled "(simulated)"{% endif %}
+  Errand v{{ version }} · MIT licensed{% if demo %} · Demo mode: simulated Runners are labelled "(simulated)"{% endif %}<br>
+  <div class="palettes" role="group" aria-label="Colour palette">
+    <span class="small">Palette</span>
+    <button type="button" data-palette="" style="--a:#015D47;--b:#FD550A" title="Forest and Mandarin (default)" aria-label="Forest and Mandarin palette"></button>
+    <button type="button" data-palette="paypal" style="--a:#003087;--b:#FFC439" title="PayPal Blue" aria-label="PayPal Blue palette"></button>
+    <button type="button" data-palette="night" style="--a:#7FD1B0;--b:#E0F354" title="Night Forest" aria-label="Night Forest palette"></button>
+    <button type="button" data-palette="ink" style="--a:#121212;--b:#FD550A" title="Ink and Mandarin" aria-label="Ink and Mandarin palette"></button>
+    <button type="button" data-palette="ultra" style="--a:#2433FF;--b:#D7FF3D" title="Ultramarine and Volt" aria-label="Ultramarine and Volt palette"></button>
+    <button type="button" data-palette="clay" style="--a:#1C6E7A;--b:#B5502F" title="Teal and Terracotta" aria-label="Teal and Terracotta palette"></button>
+    <button type="button" data-palette="plum" style="--a:#4A1F4F;--b:#FF8A5B" title="Plum and Peach" aria-label="Plum and Peach palette"></button>
+  </div>
 </footer>
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@32.3.3/dist/ag-grid-community.min.js"></script>

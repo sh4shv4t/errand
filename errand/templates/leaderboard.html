@@ -1,13 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Leaderboard · Errand{% endblock %}
+{% block title %}Rankings · Errand{% endblock %}
 {% block page %}leaderboard{% endblock %}
 {% block content %}
-<h1>Runner leaderboard</h1>
-<p class="sub">Ratings come from mystery errands, the onboarding exam and verified work. Quality is the lower 95% confidence bound of the pass rate, so small samples never outrank proven Runners. Brier score measures how honest a Runner's confidence is (lower is better).</p>
-<div class="card">
-  <div class="tabs" id="lb-tabs">
-    {% for l in lanes %}<button data-lane="{{ l.id }}" class="{{ 'active' if loop.first }}">{{ l.title }} <span class="mono muted">{{ l.id }}</span></button>{% endfor %}
-  </div>
-  <div id="lb-grid" class="gridbox ag-theme-quartz"></div>
+<p class="eyebrow">Rankings</p>
+<h1>The specialists, <span class="serif">ranked</span>.</h1>
+<p class="sub">Ranked by how often they are right. Hidden test questions keep checking, so a new model has to prove itself before it climbs.</p>
+<div class="tabs" id="lb-tabs">
+  {% for l in lanes %}<button data-lane="{{ l.id }}" class="{{ 'active' if loop.first }}">{{ l.title }}</button>{% endfor %}
 </div>
+<ol class="ranks" id="ranks"></ol>
 {% endblock %}

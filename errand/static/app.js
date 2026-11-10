@@ -78,6 +78,18 @@
     links.addEventListener("mouseleave", () => { pill.style.opacity = "0"; });
   }
 
+  // footer palette switcher (palettes are defined at the end of app.css)
+  const paletteBtns = $$(".palettes button");
+  const markPalette = () => paletteBtns.forEach((b) =>
+    b.setAttribute("aria-pressed", String((document.documentElement.dataset.palette || "") === b.dataset.palette)));
+  paletteBtns.forEach((b) => b.addEventListener("click", () => {
+    if (b.dataset.palette) document.documentElement.dataset.palette = b.dataset.palette;
+    else document.documentElement.removeAttribute("data-palette");
+    try { localStorage.setItem("errand-palette", b.dataset.palette); } catch (e) { /* private mode: palette just won't persist */ }
+    markPalette();
+  }));
+  markPalette();
+
   function countTo(el, from, to, { prefix = "", suffix = "", decimals = 0 } = {}) {
     if (!el) return;
     const fmt = (v) => prefix + Number(v).toFixed(decimals) + suffix;
@@ -96,26 +108,25 @@
   }, { rootMargin: "0px 0px -12% 0px" }) : null;
   $$(".reveal, .mark").forEach((el) => (io ? io.observe(el) : el.classList.add("in")));
 
-  // ---------- leaderboard (index + leaderboard pages) ----------
-  const lbCols = [
-    { field: "name", headerName: "Runner", minWidth: 110 },
-    { field: "declared_model", headerName: "Model", minWidth: 170 },
-    { field: "status", cellRenderer: (p) => statusBadge(p.value), minWidth: 110 },
-    { field: "rating", headerName: "Rating", sort: "desc" },
-    { field: "quality_lcb", headerName: "Quality (LCB)", valueFormatter: (p) => pct(p.value) },
-    { field: "verified", headerName: "Samples" },
-    { field: "price_usd", headerName: "Price", valueFormatter: (p) => usd(p.value) },
-    { field: "p95_ms", headerName: "p95 ms" },
-    { field: "uptime", valueFormatter: (p) => pct(p.value) },
-    { field: "brier", headerName: "Brier" },
-    { field: "exam_rate", headerName: "Exam", valueFormatter: (p) => pct(p.value) },
-    { field: "mystery_rate", headerName: "Mystery", valueFormatter: (p) => pct(p.value) },
-  ];
+  // ---------- rankings (index + leaderboard pages): plain words, no jargon ----------
+  const speed = (ms) => (ms < 1000 ? "under 1 s" : `${(ms / 1000).toFixed(1)} s`);
   async function initLeaderboard() {
-    const tabs = $$("#lb-tabs button");
+    const tabs = $$("#lb-tabs button"), list = $("#ranks");
     async function load(lane) {
       tabs.forEach((t) => t.classList.toggle("active", t.dataset.lane === lane));
-      grid("#lb-grid", lbCols, await api(`/v1/leaderboard?lane=${encodeURIComponent(lane)}`));
+      const rows = (await api(`/v1/leaderboard?lane=${encodeURIComponent(lane)}`)).filter((r) => r.status === "active");
+      list.innerHTML = rows.map((r, i) => {
+        const acc = Math.round(100 * r.pass_mean);
+        const off = r.status !== "active";
+        return `<li class="rank${off ? " off" : ""}" style="--i:${i}">
+          <span class="pos">${i + 1}</span>
+          <div class="who"><b>${esc(r.name)}</b><span>${esc(r.declared_model.replace(" (simulated)", ""))}${off ? " · paused" : ""}</span></div>
+          <div class="acc"><small><b>${acc}%</b> right · ${r.verified} checked answers</small><div class="bar"><i style="--w:${acc}%"></i></div></div>
+          <div class="metric">${usd(r.price_usd)}<small>per job</small></div>
+          <div class="metric">${speed(r.p95_ms)}<small>speed</small></div>
+          <div class="metric">${Math.round(r.rating)}<small>score</small></div>
+        </li>`;
+      }).join("") || `<li class="muted">No specialists here yet.</li>`;
     }
     tabs.forEach((t) => t.addEventListener("click", () => load(t.dataset.lane)));
     if (tabs.length) await load(tabs[0].dataset.lane);
@@ -131,34 +142,22 @@
       trail.style.strokeDashoffset = String(1 - k);
       steps.forEach((s, i) => s.classList.toggle("lit", k >= (i + 0.5) / steps.length));
     });
-    // Shady: beats light up as they cross the middle of the screen; the last one gets him caught
-    const card = $("#shady-card");
-    if (io && card) {
-      const beatIo = new IntersectionObserver((entries) => entries.forEach((en) => {
-        en.target.classList.toggle("lit", en.isIntersecting);
-        if (en.target.dataset.beat === "3" && en.isIntersecting && !card.classList.contains("caught")) {
-          card.classList.add("caught");
-          $("#shady-status").className = "badge bad"; $("#shady-status").textContent = "suspended";
-          $("#shady-bond").textContent = "$1.00 slashed and refunded to Senders";
-        }
-      }), { rootMargin: "-40% 0px -40% 0px" });
-      $$(".beat").forEach((b) => beatIo.observe(b));
-    }
     onScroll();
 
-    const st = await api("/v1/stats");
-    st.verified_pct = st.errands ? Math.round((100 * st.verified) / st.errands) : 0;
-    $$("[data-count]").forEach((el) => {
-      const go = () => countTo(el, 0, st[el.dataset.count] || 0,
+    // benchmark numbers count up the first time they scroll into view
+    $$("[data-to]").forEach((el) => {
+      const go = () => countTo(el, 0, Number(el.dataset.to),
         { prefix: el.dataset.prefix || "", suffix: el.dataset.suffix || "", decimals: Number(el.dataset.decimals || 0) });
       if (!io) return go();
       const o = new IntersectionObserver((en) => { if (en[0].isIntersecting) { go(); o.disconnect(); } });
       o.observe(el);
     });
+
+    const st = await api("/v1/stats");
     const track = $("#receipts-track");
     if (track && st.recent.length) {
       const html = st.recent.map((r) => `<div class="mini-receipt">
-        <div class="r"><span>${esc(r.lane)}</span><span>${r.verdict === "passed" ? "verified" : esc(r.verdict)}</span></div>
+        <div class="r"><span>${r.lane.startsWith("math") ? "math" : "code"}</span><span>${r.verdict === "passed" ? "checked ✓" : esc(r.verdict)}</span></div>
         <div class="a">${esc(r.answer)}</div>
         <div class="r"><span>${esc(r.runner)}</span><span>${usd(r.total_usd, 5)}</span></div>
         <div class="r"><span>frontier est.</span><span>${usd(r.baseline_usd, 3)}</span></div></div>`).join("");

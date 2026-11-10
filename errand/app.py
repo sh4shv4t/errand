@@ -462,7 +462,9 @@ def page(request: Request, name: str, acct: dict | None, **ctx):
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, acct=Depends(optional_account)):
-    return page(request, "index.html", acct, lanes=list(lanes.LANES.values()), base_url=config.get().base_url)
+    bench_file = HERE / "static" / "bench.json"  # written by `errand bench`
+    bench = json.loads(bench_file.read_text(encoding="utf-8")) if bench_file.exists() else None
+    return page(request, "index.html", acct, lanes=list(lanes.LANES.values()), base_url=config.get().base_url, bench=bench)
 
 
 @app.get("/leaderboard", response_class=HTMLResponse)
