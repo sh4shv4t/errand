@@ -25,23 +25,24 @@ def test_signup_send_and_dashboard(client):
     key = r.json()["api_key"]
     assert client.get("/v1/me", headers=auth(key)).json()["tier"]["name"] == "Regular"
 
-    # no money yet: 402 with a clear message
-    r = client.post("/v1/errands", headers=auth(key), json={"lane": "math.final-answer", "payload": {"problem": "What is 6 * 7?"}})
-    assert r.status_code == 402
+    # starter credit: the first errand needs no PayPal step, and one call is enough
+    assert client.get("/v1/me", headers=auth(key)).json()["balances"]["wallet"] == 1.0
+    r = client.post("/v1/delegate", headers=auth(key), json={"task": "What is 6 * 7?", "check": "42"})
+    assert r.status_code == 200 and r.json()["verdict"] == "passed"
+    assert any(x["name"] == "Duke" for x in client.get("/v1/runners").json())
 
     # top up through the (mock) PayPal redirect flow
     order = client.post("/v1/wallet/topup", headers=auth(key), json={"amount_usd": 5}).json()
     r = client.post("/paypal/mock/approve", data={"token": order["order_id"], "decision": "approve", "next": "/dashboard"},
                     follow_redirects=True)
     assert r.status_code == 200
-    assert client.get("/v1/me", headers=auth(key)).json()["balances"]["wallet"] == 5.0
+    assert client.get("/v1/me", headers=auth(key)).json()["balances"]["wallet"] > 5.9
 
     r = client.post("/v1/errands", headers=auth(key), json={"lane": "math.final-answer", "payload": {"problem": "What is 6 * 7?"}})
     assert r.status_code == 200 and r.json()["answer"] == "42"
     eid = r.json()["id"]
     assert client.post(f"/v1/errands/{eid}/feedback", headers=auth(key), json={"accepted": True}).status_code == 200
-    # the unfunded attempt is kept as a failed record for the audit trail
-    assert sorted(e["status"] for e in client.get("/v1/errands", headers=auth(key)).json()) == ["completed", "failed"]
+    assert [e["status"] for e in client.get("/v1/errands", headers=auth(key)).json()] == ["completed", "completed"]
 
 
 def test_bad_requests(client):

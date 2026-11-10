@@ -62,6 +62,12 @@ class Errand:
             body["preset"] = preset
         return self._req("POST", "/v1/errands", json=body)
 
+    def delegate(self, task: str, check: str | None = None, runner: str | None = None,
+                 budget_usd: float | None = None, **kw) -> dict:
+        """The one-call path: Errand infers the Lane, picks a Runner, verifies, then pays."""
+        body: dict[str, Any] = {"task": task, "check": check, "runner": runner, "budget_usd": budget_usd, **kw}
+        return self._req("POST", "/v1/delegate", json={k: v for k, v in body.items() if v is not None})
+
     def send_math(self, problem: str, expected: str | None = None, **kw) -> dict:
         payload = {"problem": problem} | ({"expected": expected} if expected else {})
         return self.send("math.final-answer", payload, **kw)
@@ -87,6 +93,8 @@ class Errand:
     def run_tool(self, name: str, args: dict) -> Any:
         """Execute a tool call from any LLM. Errors come back as data so the model can react."""
         try:
+            if name == "delegate":
+                return self.delegate(args["task"], args.get("check"), args.get("runner"), args.get("budget_usd"))
             if name == "list_lanes":
                 return self.lanes()
             if name == "recommend_runner":

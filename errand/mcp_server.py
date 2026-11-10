@@ -23,10 +23,9 @@ request_key: contextvars.ContextVar[str | None] = contextvars.ContextVar("errand
 _gateway_asgi = None
 
 INSTRUCTIONS = """Errand lets you delegate well-scoped sub-tasks to cheaper specialist models and pay only for verified results.
-Delegate when a sub-problem fits a lane (call list_lanes) and is self-contained, for example a math problem with a
-numeric answer or a Python function you can describe with tests. Call recommend_runner first if you want the expected
-cost and pass rate. Always pass tests for code errands and, when you know it, an expected answer for math so payment is
-verified. Never invent a PayPal link: if the wallet is empty, call request_top_up and show the returned link to the human."""
+Use `delegate` for a self-contained sub-problem: a math problem with a numeric answer, or one Python function you can
+describe with assert tests. Put the expected answer or the asserts in `check` so payment is verified. Report the cost and
+savings once. Never invent a PayPal link: if the wallet is empty, call request_top_up and show the returned link to the human."""
 
 server = MCPServer(name="errand", instructions=INSTRUCTIONS, website_url="https://github.com/sh4shv4t/errand")
 
@@ -69,6 +68,22 @@ async def _call(method: str, path: str, **kw) -> Any:
     return body
 
 
+_KEEP = ("id", "status", "verdict", "answer", "output", "confidence", "detail", "runner",
+         "total_usd", "baseline_usd", "saved_usd", "latency_ms", "attempts")
+
+
+@server.tool(description="Hand a self-contained sub-task to a cheaper specialist model and get a verified answer. "
+                         "task: the problem in plain words. check: a known answer, or Python assert lines for code "
+                         "(payment is released only if it verifies). runner: optional Runner name to use. "
+                         "Errand picks the Lane and Runner, escrows payment and retries failures for free.")
+async def delegate(task: str, check: str | None = None, runner: str | None = None,
+                   budget_usd: float | None = None) -> Any:
+    body = {k: v for k, v in {"task": task, "check": check, "runner": runner, "budget_usd": budget_usd}.items()
+            if v is not None}
+    e = await _call("POST", "/v1/delegate", json=body)
+    return {k: e[k] for k in _KEEP} if isinstance(e, dict) and "id" in e else e
+
+
 @server.tool(description="List the task lanes Errand can delegate, with required payload fields and the estimated frontier-model cost.")
 async def list_lanes() -> Any:
     return await _call("GET", "/v1/lanes")
@@ -83,7 +98,7 @@ async def recommend_runner(lane: str, preset: str = "balanced", budget_usd: floa
     return await _call("GET", "/v1/recommend", params=params)
 
 
-@server.tool(description="Delegate an errand and wait for the verified result. "
+@server.tool(description="Advanced, prefer delegate. Delegate an errand and wait for the verified result. "
                          "For lane 'math.final-answer' pass problem (and expected if you know the answer). "
                          "For lane 'code.python.tests' pass function_name, spec and tests (Python assert lines). "
                          "Payment is held in escrow and released only if verification passes; failed attempts are retried "
@@ -104,8 +119,7 @@ async def send_errand(lane: str, problem: str | None = None, expected: str | Non
         body["preset"] = preset
     e = await _call("POST", "/v1/errands", json=body)
     if isinstance(e, dict) and "id" in e:  # trim to what an agent needs
-        return {k: e[k] for k in ("id", "status", "verdict", "answer", "output", "confidence", "detail", "runner",
-                                  "total_usd", "baseline_usd", "saved_usd", "latency_ms", "attempts")}
+        return {k: e[k] for k in _KEEP}
     return e
 
 

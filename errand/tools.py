@@ -8,6 +8,19 @@ from __future__ import annotations
 
 TOOLS = [
     {
+        "name": "delegate",
+        "description": "Hand a self-contained sub-task to a cheaper specialist model and get the answer back. "
+                       "Describe the task in plain words. Put a known answer, or Python assert lines for code, in `check`: "
+                       "payment is then released only if the result verifies. Errand picks the Lane and Runner; "
+                       "pass `runner` to pick one yourself.",
+        "parameters": {"type": "object", "properties": {
+            "task": {"type": "string", "description": "the sub-task, e.g. a math problem or a function to write"},
+            "check": {"type": "string", "description": "expected answer, or Python assert lines for code"},
+            "runner": {"type": "string", "description": "optional Runner name or id to use (falls back if unavailable)"},
+            "budget_usd": {"type": "number", "description": "max total spend for this errand"},
+        }, "required": ["task"]},
+    },
+    {
         "name": "list_lanes",
         "description": "List the task lanes Errand can delegate, with required fields and the estimated frontier-model cost.",
         "parameters": {"type": "object", "properties": {}},
@@ -23,7 +36,8 @@ TOOLS = [
     },
     {
         "name": "send_errand",
-        "description": "Delegate a self-contained sub-task to a cheaper specialist model and get a verified answer. "
+        "description": "Advanced: delegate with an explicit Lane and payload. Prefer `delegate`. "
+                       "Delegate a self-contained sub-task to a cheaper specialist model and get a verified answer. "
                        "Math: give problem (and expected if known). Code: give function_name, spec and tests (Python asserts). "
                        "Payment is escrowed and released only if verification passes.",
         "parameters": {"type": "object", "properties": {

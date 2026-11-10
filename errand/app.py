@@ -172,6 +172,17 @@ class ErrandIn(BaseModel):
     budget_usd: float | None = None
     preset: str | None = None
     mode: str = "sample"
+    runner: str | None = None
+    fallback: bool = True
+
+
+class DelegateIn(BaseModel):
+    task: str
+    check: str | None = None
+    budget_usd: float | None = None
+    runner: str | None = None
+    preset: str | None = None
+    fallback: bool = True
 
 
 class FeedbackIn(BaseModel):
@@ -185,9 +196,11 @@ class TopupIn(BaseModel):
 
 
 class BountyIn(BaseModel):
-    lane: str
-    payload: dict[str, Any]
     amount_usd: float
+    lane: str | None = None
+    payload: dict[str, Any] | None = None
+    task: str | None = None  # or describe it in plain words, like /v1/delegate
+    check: str | None = None
 
 
 class RunnerProfileIn(BaseModel):
@@ -256,9 +269,47 @@ def api_send(body: ErrandIn, acct=Depends(current_account), conn=Depends(get_con
     _require(acct, "sender")
     rate_limit(conn, acct)
     try:
-        return service.send_errand(conn, acct, body.lane, body.payload, body.budget_usd, body.preset, body.mode)
+        return service.send_errand(conn, acct, body.lane, body.payload, body.budget_usd, body.preset, body.mode,
+                                   runner=body.runner, fallback=body.fallback)
     except lanes.PayloadError as e:
         raise service.ErrandError(str(e)) from None
+
+
+@app.post("/v1/delegate")
+def api_delegate(body: DelegateIn, acct=Depends(current_account), conn=Depends(get_conn)):
+    """One call: describe the task, optionally give an expected answer or assert tests. Errand does the rest."""
+    _require(acct, "sender")
+    rate_limit(conn, acct)
+    try:
+        return service.delegate(conn, acct, body.task, body.check, body.budget_usd, body.runner, body.preset, body.fallback)
+    except lanes.PayloadError as e:
+        raise service.ErrandError(str(e)) from None
+
+
+@app.get("/v1/stats")
+def api_stats(conn=Depends(get_conn)):
+    """Public headline numbers for the landing page."""
+    done = conn.execute("SELECT COUNT(*), COALESCE(SUM(verdict='passed'),0), COALESCE(SUM(MAX(0, baseline-(price+fee-dividend))),0) "
+                        "FROM errands WHERE status='completed' AND kind IN ('live','bounty')").fetchone()
+    recent = conn.execute(
+        "SELECT e.lane, e.answer, e.verdict, e.price+e.fee-e.dividend AS total, e.baseline, e.latency_ms, a.name "
+        "FROM errands e JOIN accounts a ON a.id=e.runner_id WHERE e.status='completed' AND e.kind IN ('live','bounty') "
+        "ORDER BY e.completed_at DESC LIMIT 12").fetchall()
+    return {"recent": [{"lane": r["lane"], "runner": r["name"], "verdict": r["verdict"], "latency_ms": r["latency_ms"],
+                        "answer": r["answer"] if r["lane"] == "math.final-answer" else "tests passed",
+                        "total_usd": r["total"] / 1e6, "baseline_usd": r["baseline"] / 1e6} for r in recent],
+            "errands": done[0], "verified": done[1], "saved_usd": done[2] / 1e6,
+            "runners": conn.execute("SELECT COUNT(*) FROM runners WHERE status='active'").fetchone()[0],
+            "slashed": conn.execute("SELECT COUNT(*) FROM flags").fetchone()[0]}
+
+
+@app.get("/v1/runners")
+def api_runners(conn=Depends(get_conn)):
+    """Active Runners a Sender can pin, with their Lanes and prices."""
+    rows = conn.execute("SELECT r.id, a.name, r.declared_model, r.lanes FROM runners r JOIN accounts a ON a.id=r.id "
+                        "WHERE r.status='active' ORDER BY a.name")
+    return [{"id": r["id"], "name": r["name"], "model": r["declared_model"],
+             "lanes": {k: v / 1e6 for k, v in json.loads(r["lanes"]).items()}} for r in rows]
 
 
 @app.get("/v1/errands")
@@ -289,7 +340,8 @@ def api_topup(body: TopupIn, acct=Depends(current_account), conn=Depends(get_con
 def api_bounty(body: BountyIn, acct=Depends(current_account), conn=Depends(get_conn)):
     _require(acct, "sender")
     try:
-        return service.start_bounty(conn, acct, body.lane, body.payload, body.amount_usd)
+        lane_id, payload = (body.lane, body.payload) if body.lane else service.infer_errand(body.task, body.check)
+        return service.start_bounty(conn, acct, lane_id, payload or {}, body.amount_usd)
     except lanes.PayloadError as e:
         raise service.ErrandError(str(e)) from None
 
@@ -410,7 +462,7 @@ def page(request: Request, name: str, acct: dict | None, **ctx):
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, acct=Depends(optional_account)):
-    return page(request, "index.html", acct, lanes=list(lanes.LANES.values()))
+    return page(request, "index.html", acct, lanes=list(lanes.LANES.values()), base_url=config.get().base_url)
 
 
 @app.get("/leaderboard", response_class=HTMLResponse)
@@ -420,10 +472,8 @@ def leaderboard_page(request: Request, acct=Depends(optional_account)):
 
 @app.get("/connect", response_class=HTMLResponse)
 def connect_page(request: Request, acct=Depends(optional_account)):
-    demo_key = None
-    if config.get().demo and acct:
-        k = seed.load_keys()
-        demo_key = (k.get("senders", {}).get(acct["id"]) or k.get("runners", {}).get(acct["id"]) or {}).get("api_key")
+    # Your own key is the session cookie, so the page can fill it in for real accounts too.
+    demo_key = request.cookies.get(COOKIE) if acct else None
     from . import connect as connect_mod
     base = config.get().base_url
     return page(request, "connect.html", acct, base_url=base, demo_key=demo_key,
@@ -487,9 +537,9 @@ def signup(request: Request, kind: str = Form(...), name: str = Form(...), email
         acct, key = service.create_account(conn, kind, name, email or None)
     except service.ErrandError as e:
         return page(request, "signup.html", None, kind=kind, new_key=None, error=str(e))
-    resp = page(request, "signup.html", acct, kind=kind, new_key=key)
-    resp.set_cookie(COOKIE, key, httponly=True, samesite="lax", max_age=30 * 86400)
-    return resp
+    welcome = ("Welcome. You have $1.00 of starter credit, so your first errands are on us."
+               if acct["kind"] == "sender" else "Welcome. Register your model below; the onboarding exam starts right away.")
+    return _login(key, f"/dashboard?flash={quote(welcome)}")
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -497,4 +547,5 @@ def dashboard(request: Request, acct=Depends(optional_account)):
     if acct is None:
         return RedirectResponse("/login", status_code=303)
     template = {"sender": "sender.html", "runner": "runner.html", "platform": "platform.html"}[acct["kind"]]
-    return page(request, template, acct, lanes=list(lanes.LANES.values()))
+    return page(request, template, acct, lanes=list(lanes.LANES.values()), base_url=config.get().base_url,
+                api_key=request.cookies.get(COOKIE) or "erk_YOUR_KEY")

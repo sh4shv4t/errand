@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import secrets
 import sqlite3
 
@@ -19,6 +20,7 @@ from .paypal import client as paypal
 MAX_ATTEMPTS = 3
 DIVIDEND_SHARE = 0.20  # share of the platform fee returned to Senders who share Receipts (consent >= 2)
 TOPUP_MIN, TOPUP_MAX = 1_000_000, 500_000_000
+STARTER_CREDIT = 1_000_000  # $1 of platform-funded credit, so a new Sender's first errands need no PayPal step
 
 
 class ErrandError(Exception):
@@ -44,7 +46,7 @@ def hash_key(key: str) -> str:
 
 
 def create_account(conn: sqlite3.Connection, kind: str, name: str, email: str | None = None,
-                   account_id: str | None = None) -> tuple[dict, str]:
+                   account_id: str | None = None, starter_credit: bool = True) -> tuple[dict, str]:
     if kind not in ("sender", "runner"):
         raise ErrandError("kind must be 'sender' or 'runner'")
     name = (name or "").strip()
@@ -57,6 +59,9 @@ def create_account(conn: sqlite3.Connection, kind: str, name: str, email: str | 
             "INSERT INTO accounts(id, kind, name, email, api_key_hash, created_at, paypal_email) VALUES (?,?,?,?,?,?,?)",
             (account_id, kind, name, email, hash_key(api_key), now(), email),
         )
+        if kind == "sender" and starter_credit:
+            ledger.move(conn, "starter credit (platform funded, not PayPal)", (PLATFORM_ID, "promo"),
+                        (account_id, "wallet"), STARTER_CREDIT, allow_negative=True)
     return get_account(conn, account_id), api_key
 
 
@@ -151,8 +156,6 @@ def maybe_start_exam(conn: sqlite3.Connection, runner_id: str, sync: bool = Fals
     r = conn.execute("SELECT status FROM runners WHERE id=?", (runner_id,)).fetchone()
     if r is None or r["status"] != "onboarding":
         return r["status"] if r else "unregistered"
-    if ledger.balance(conn, runner_id, "bond") < integrity.MIN_BOND:
-        return "needs_bond"
     if sync:
         return integrity.run_exam(conn, runner_id)["status"]
     integrity.run_exam_async(runner_id)
@@ -160,6 +163,51 @@ def maybe_start_exam(conn: sqlite3.Connection, runner_id: str, sync: bool = Fals
 
 
 # ---------- errands ----------
+
+def _runner_pay(conn, runner_id: str, amount: int) -> list[tuple[str, str, int]]:
+    """Ledger entries paying a Runner. Earnings fill the Bond first, so nobody has to post one up front."""
+    to_bond = min(amount, max(0, integrity.MIN_BOND - ledger.balance(conn, runner_id, "bond")))
+    return [(runner_id, "bond", to_bond), (runner_id, "earnings", amount - to_bond)]
+
+
+def resolve_runner(conn, ref: str) -> str:
+    """A Runner id (run_duke) or display name (Duke), case-insensitive."""
+    ref = (ref or "").strip()
+    r = conn.execute("SELECT r.id FROM runners r JOIN accounts a ON a.id=r.id WHERE r.id=? OR lower(a.name)=lower(?)",
+                     (ref, ref)).fetchone()
+    if r is None:
+        raise NotFound(f"no runner called {ref!r}")
+    return r[0]
+
+
+_DEF_RE = re.compile(r"\bdef\s+([A-Za-z_]\w*)\s*\(")
+_ASSERT_CALL_RE = re.compile(r"\bassert\s+(?:not\s+)?\(?\s*([A-Za-z_]\w*)\s*\(")
+_CODE_HINT_RE = re.compile(r"\b(write|implement)\b.*\bfunction\b|\bdef\s+\w+\s*\(", re.I | re.S)
+
+
+def infer_errand(task: str, check: str | None = None) -> tuple[str, dict]:
+    """Turn a plain task (plus an optional expected answer or assert tests) into a Lane and payload."""
+    task, check = (task or "").strip(), (check or "").strip()
+    if not task:
+        raise ErrandError("task is required")
+    if "assert" in check:
+        m = _DEF_RE.search(task) or _ASSERT_CALL_RE.search(check)
+        if not m:
+            raise ErrandError("name the function in the task (def name(...)) or call it in the asserts")
+        return "code.python.tests", {"function_name": m.group(1), "spec": task, "tests": check}
+    if _CODE_HINT_RE.search(task):
+        raise ErrandError("code errands need tests: pass Python assert lines as `check`, "
+                          "so payment is released only if they pass")
+    return "math.final-answer", {"problem": task} | ({"expected": check} if check else {})
+
+
+def delegate(conn: sqlite3.Connection, sender: dict, task: str, check: str | None = None,
+             budget_usd: float | None = None, runner: str | None = None, preset: str | None = None,
+             fallback: bool = True) -> dict:
+    """The one-call entry point: Errand picks the Lane, the Runner, and verifies before paying."""
+    lane_id, payload = infer_errand(task, check)
+    return send_errand(conn, sender, lane_id, payload, budget_usd, preset, runner=runner, fallback=fallback)
+
 
 def _spent_last_24h(conn, sender_id: str) -> int:
     r = conn.execute(
@@ -171,7 +219,7 @@ def _spent_last_24h(conn, sender_id: str) -> int:
 
 def send_errand(conn: sqlite3.Connection, sender: dict, lane_id: str, payload: dict,
                 budget_usd: float | None = None, preset: str | None = None, mode: str = "sample",
-                mystery_async: bool = True) -> dict:
+                mystery_async: bool = True, runner: str | None = None, fallback: bool = True) -> dict:
     if sender["kind"] != "sender":
         raise ErrandError("only sender accounts can post errands")
     lane = lanes.get(lane_id)
@@ -182,6 +230,7 @@ def send_errand(conn: sqlite3.Connection, sender: dict, lane_id: str, payload: d
     if mode not in ("sample", "top"):
         raise ErrandError("mode must be 'sample' or 'top'")
     preset = preset or sender.get("preset") or "balanced"
+    pinned = resolve_runner(conn, runner) if runner else None
     budget = to_micros(budget_usd) if budget_usd is not None else sender["cap_per_errand"]
     if budget <= 0:
         raise ErrandError("budget must be positive")
@@ -205,9 +254,18 @@ def send_errand(conn: sqlite3.Connection, sender: dict, lane_id: str, payload: d
     last_detail = "no active runner fits this lane and budget"
     for attempt in range(1, MAX_ATTEMPTS + 1):
         cands = dispatch.candidates(conn, lane_id, max_price, exclude=tried)
+        if pinned and (attempt == 1 or not fallback):
+            mine = [c for c in cands if c.runner["id"] == pinned]
+            if mine:
+                cands = mine
+            elif not fallback:
+                last_detail = "the Runner you picked is not available for this lane and budget"
+                break
         if not cands:
             break
         cand, policy = dispatch.choose(cands, preset, mode)
+        if cand.runner["id"] == pinned:
+            policy = "pinned"
         runner = cand.runner
         tried.add(runner["id"])
         price = cand.price
@@ -226,7 +284,7 @@ def send_errand(conn: sqlite3.Connection, sender: dict, lane_id: str, payload: d
             with db.tx(conn):
                 ledger.post(conn, "errand settled", [
                     (sender["id"], "escrow", -(price + fee)),
-                    (runner["id"], "earnings", price),
+                    *_runner_pay(conn, runner["id"], price),
                     (PLATFORM_ID, "revenue", fee - dividend),
                     (sender["id"], "wallet", dividend),
                 ], ref=errand_id)
@@ -478,7 +536,7 @@ def _run_bounty(conn, op: dict) -> dict:
             with db.tx(conn):
                 ledger.post(conn, "bounty captured and paid", [
                     (PAYPAL_ID, "world", -amount),
-                    (cand.runner["id"], "earnings", amount - fee),
+                    *_runner_pay(conn, cand.runner["id"], amount - fee),
                     (PLATFORM_ID, "revenue", fee),
                 ], ref=errand_id)
                 conn.execute("UPDATE paypal_ops SET status='settled', meta=?, updated_at=? WHERE id=?",
@@ -576,8 +634,6 @@ def runner_view(conn, runner_id: str) -> dict:
     served = conn.execute("SELECT COUNT(*), COALESCE(SUM(price),0) FROM errands WHERE runner_id=? AND status='completed'",
                           (runner_id,)).fetchone()
     status = r["status"] if r else "unregistered"
-    if r and status == "onboarding" and ledger.balance(conn, runner_id, "bond") < integrity.MIN_BOND:
-        status = "needs_bond"
     return {
         "account": acct,
         "runner": r,

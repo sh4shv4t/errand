@@ -14,7 +14,7 @@ def fund(conn, account_id, bucket, usd):
 
 
 def make_sender(conn, usd=1.0, **settings):
-    acct, _ = service.create_account(conn, "sender", "Tester")
+    acct, _ = service.create_account(conn, "sender", "Tester", starter_credit=False)
     if settings:
         service.update_settings(conn, acct["id"], settings)
     if usd:
@@ -160,10 +160,46 @@ def test_exam_rejects_bad_runner(conn):
     assert conn.execute("SELECT status FROM runners WHERE id=?", (rid,)).fetchone()[0] == "rejected"
 
 
-def test_runner_without_bond_waits(conn):
+def test_runner_without_bond_starts_and_earns_its_bond(conn):
     acct, _ = service.create_account(conn, "runner", "NoBond")
-    service.register_runner(conn, acct["id"], "m", {MATH: 0.001}, "simulated", {"accuracy": {MATH: 1}}, sync_exam=True)
-    assert service.runner_view(conn, acct["id"])["status"] == "needs_bond"
+    service.register_runner(conn, acct["id"], "m", {MATH: 0.001}, "simulated",
+                            {"accuracy": {MATH: 1}, "latency_ms": [0, 0]}, sync_exam=True)
+    assert service.runner_view(conn, acct["id"])["status"] == "active"  # no upfront bond
+    s = make_sender(conn, usd=1.0)
+    item = taskbank.items(MATH, "demo")[0]
+    service.send_errand(conn, s, MATH, taskbank.payload_for(MATH, item), mystery_async=False)
+    assert ledger.balance(conn, acct["id"], "bond") == 1000  # first earnings fill the bond
+    assert ledger.balance(conn, acct["id"], "earnings") == 0
+    assert ledger.total(conn) == 0
+
+
+def test_starter_credit_and_delegate_infers_lane(conn):
+    make_runner(conn, "Duke", {MATH: 0.001}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    make_runner(conn, "Ada", {CODE: 0.001}, {"accuracy": {CODE: 1.0}, "latency_ms": [0, 0]})
+    acct, _ = service.create_account(conn, "sender", "Newbie")
+    assert ledger.balance(conn, acct["id"], "wallet") == service.STARTER_CREDIT
+    item = taskbank.items(MATH, "demo")[0]
+    e = service.delegate(conn, acct, item["problem"], item["answer"])
+    assert e["lane"] == MATH and e["verdict"] == "passed"
+    code = taskbank.code_payload(taskbank.items(CODE, "demo")[0])
+    e = service.delegate(conn, acct, code["spec"], code["tests"])
+    assert e["lane"] == CODE and e["verdict"] == "passed"
+    with pytest.raises(service.ErrandError):
+        service.delegate(conn, acct, "Write a function that reverses a list")  # code without tests
+    assert ledger.total(conn) == 0
+
+
+def test_pinned_runner_is_used_and_falls_back(conn):
+    make_runner(conn, "Duke", {MATH: 0.001}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    make_runner(conn, "Atlas", {MATH: 0.004}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    s = make_sender(conn, usd=1.0)
+    item = taskbank.items(MATH, "demo")[0]
+    e = service.delegate(conn, s, item["problem"], item["answer"], runner="atlas")
+    assert e["runner"]["name"] == "Atlas" and e["policy"] == "pinned"
+    with pytest.raises(service.NotFound):
+        service.delegate(conn, s, item["problem"], item["answer"], runner="nobody")
+    e = service.delegate(conn, s, item["problem"], item["answer"], runner="atlas", budget_usd=0.002)
+    assert e["runner"]["name"] == "Duke"  # Atlas is over budget, so dispatch falls back
 
 
 # ---------- PayPal flows (mock mode) ----------

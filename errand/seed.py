@@ -69,7 +69,8 @@ def seed(conn, with_ollama: bool = True) -> dict:
         return load_keys()
     keys: dict = {"platform": service.set_platform_key(conn)}
 
-    alan, alan_key = service.create_account(conn, "sender", "Alan (demo agent)", "alan@example.com", account_id="snd_alan")
+    alan, alan_key = service.create_account(conn, "sender", "Alan (demo agent)", "alan@example.com", account_id="snd_alan",
+                                            starter_credit=False)
     service.update_settings(conn, alan["id"], {"cap_per_errand_usd": 0.05, "cap_daily_usd": 5, "consent_level": 2})
     _seed_credit(conn, alan["id"], "wallet", 2.0)
     keys["senders"] = {alan["id"]: {"name": alan["name"], "api_key": alan_key}}
