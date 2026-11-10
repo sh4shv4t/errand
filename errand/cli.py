@@ -76,7 +76,8 @@ def cmd_demo(a) -> None:
         results.append(e)
         mark = {"passed": "ok ", "delivered": "ok ", None: "-- "}.get(e["verdict"], "!! ")
         who = e["runner"]["name"] if e["runner"] else "nobody"
-        print(f"  {mark}{lane:18} {who:8} answer={str(e['answer'])[:18]:18} paid=${e['total_usd']:.5f}")
+        shown = "tests passed" if lane == "code.python.tests" and e["verdict"] == "passed" else str(e["answer"])[:18]
+        print(f"  {mark}{lane:18} {who:8} answer={shown:18} paid=${e['total_usd']:.5f}")
         if rng.random() < a.mystery:
             m = integrity.run_mystery(conn, lane, rng=rng)
             if m and m["flag"]:
