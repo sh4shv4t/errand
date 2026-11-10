@@ -73,11 +73,13 @@ def run_exam(conn: sqlite3.Connection, runner_id: str) -> dict:
             _, _, _, verdict = execute(conn, "exam", runner, lane_id, taskbank.payload_for(lane_id, item), "exam")
             passes += bool(verdict.passed)
         results[lane_id] = {"passed": passes, "total": len(tasks)}
-    ok = all(r["total"] and r["passed"] / r["total"] >= EXAM_PASS_RATE for r in results.values())
-    status = "active" if ok else "rejected"
+    # Lane by Lane: a specialist that aces code but not math is listed for code only, not turned away
+    prices = json.loads(runner["lanes"])
+    passed = {lane: prices[lane] for lane, r in results.items() if r["total"] and r["passed"] / r["total"] >= EXAM_PASS_RATE}
+    status = "active" if passed else "rejected"
     with db.tx(conn):
-        conn.execute("UPDATE runners SET status=? WHERE id=?", (status, runner_id))
-    return {"status": status, "lanes": results}
+        conn.execute("UPDATE runners SET status=?, lanes=? WHERE id=?", (status, db.dumps(passed or prices), runner_id))
+    return {"status": status, "lanes": results, "listed_in": sorted(passed)}
 
 
 def run_exam_async(runner_id: str) -> None:

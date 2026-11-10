@@ -130,11 +130,27 @@ def code_extract(output: str) -> str | None:
     return code or None
 
 
+_IMPORT_RE = re.compile(r"^\s*(?:from\s+([\w.]+)\s+import\s+.+|import\s+([\w.]+)(?:\s+as\s+\w+)?)\s*$")
+
+
+def _tests_without_project_imports(tests: str) -> str:
+    """Agents write tests as if the function lived in their project (`from utils import f`).
+    Errand runs the tests against the delivered code, so imports of non-stdlib modules are dropped."""
+    keep = []
+    for line in tests.splitlines():
+        m = _IMPORT_RE.match(line)
+        if m and (m.group(1) or m.group(2)).split(".")[0] not in sys.stdlib_module_names:
+            continue
+        keep.append(line)
+    return "\n".join(keep)
+
+
 def code_verify(p: dict, code: str | None, timeout: float = 10.0) -> Verdict:
     if not code:
         return Verdict(False, "no code returned")
     if f"def {p['function_name']}" not in code:
         return Verdict(False, f"function {p['function_name']} not defined")
+    p = p | {"tests": _tests_without_project_imports(p["tests"])}
     # Runs untrusted code in a separate isolated interpreter with a timeout and a scratch cwd.
     # This is a hackathon-grade sandbox, not a security boundary; see README "Limitations".
     with tempfile.TemporaryDirectory() as d:

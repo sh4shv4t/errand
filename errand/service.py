@@ -182,7 +182,8 @@ def resolve_runner(conn, ref: str) -> str:
 
 _DEF_RE = re.compile(r"\bdef\s+([A-Za-z_]\w*)\s*\(")
 _ASSERT_CALL_RE = re.compile(r"\bassert\s+(?:not\s+)?\(?\s*([A-Za-z_]\w*)\s*\(")
-_CODE_HINT_RE = re.compile(r"\b(write|implement)\b.*\bfunction\b|\bdef\s+\w+\s*\(", re.I | re.S)
+_CODE_HINT_RE = re.compile(r"\b(write|implement|create|add|build)\b.*\bfunction\b|\bdef\s+\w+\s*\(|\.py\b|_function_"
+                           r"|\bpython\s+function\b|\bfunction\s+`[A-Za-z_]\w*\s*\(", re.I | re.S)
 
 
 def infer_errand(task: str, check: str | None = None) -> tuple[str, dict]:
@@ -227,6 +228,12 @@ def send_errand(conn: sqlite3.Connection, sender: dict, lane_id: str, payload: d
         lane.validate(payload)
     except lanes.PayloadError as e:
         raise ErrandError(str(e)) from None
+    if lane_id == "code.python.tests":  # broken tests can never pass: bounce them before anyone is paid to try
+        try:
+            compile(payload["tests"], "<tests>", "exec")
+        except SyntaxError as e:
+            raise ErrandError(f"your tests do not parse (line {e.lineno}: {e.msg}); fix them and send again. "
+                              "Nothing was charged.") from None
     if mode not in ("sample", "top"):
         raise ErrandError("mode must be 'sample' or 'top'")
     preset = preset or sender.get("preset") or "balanced"

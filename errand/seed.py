@@ -7,6 +7,7 @@ with real PayPal money. If Ollama is running locally, its models are added as re
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import httpx
@@ -80,7 +81,9 @@ def seed(conn, with_ollama: bool = True) -> dict:
     scale = config.get().sim_latency_scale
     config.configure(sim_latency_scale=0.0)  # demo exams run instantly; real Runners keep real latency
     if with_ollama:
-        for m in ollama_models()[:2]:
+        wanted = [m.strip() for m in os.environ.get("ERRAND_OLLAMA_MODELS", "").split(",") if m.strip()]
+        found = ollama_models()
+        for m in ([m for m in wanted if m in found] if wanted else found[:2]):
             slug = "".join(ch if ch.isalnum() else "-" for ch in m).strip("-")
             specs.append(dict(id=f"run_ollama_{slug}"[:40], name=f"Ollama {m}", email=None, model=m,
                               lanes={MATH: 0.0002, CODE: 0.0003}, kind="openai",

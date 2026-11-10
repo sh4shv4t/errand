@@ -300,3 +300,20 @@ def test_bench_combine_routes_each_lane_to_its_best_model():
 def test_demo_seed_leaves_out_the_villain_unless_asked(seeded):
     names = {r[0] for r in seeded.execute("SELECT a.name FROM runners r JOIN accounts a ON a.id=r.id")}
     assert "Shady" not in names and {"Duke", "Ada", "Atlas"} <= names
+
+
+def test_exam_lists_a_specialist_only_in_the_lanes_it_passes(conn):
+    rid = make_runner(conn, "Coder", {MATH: 0.001, CODE: 0.001},
+                      {"accuracy": {MATH: 0.0, CODE: 1.0}, "latency_ms": [0, 0]})
+    status, lanes_json = conn.execute("SELECT status, lanes FROM runners WHERE id=?", (rid,)).fetchone()
+    assert status == "active" and list(__import__("json").loads(lanes_json)) == [CODE]
+    assert all(c.runner["id"] != rid for c in dispatch.candidates(conn, MATH))
+
+
+def test_code_errand_with_broken_tests_is_bounced_for_free(conn):
+    make_runner(conn, "Ada", {CODE: 0.001}, {"accuracy": {CODE: 1.0}, "latency_ms": [0, 0]})
+    s = make_sender(conn, usd=1.0)
+    with pytest.raises(service.ErrandError, match="do not parse"):
+        service.delegate(conn, s, "Write is_palindrome(s).", "assert is_palindrome('I'm')")
+    assert ledger.balance(conn, s["id"], "wallet") == 1_000_000
+    assert conn.execute("SELECT COUNT(*) FROM attempts").fetchone()[0] == 4  # only Ada's onboarding exam
