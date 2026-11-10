@@ -1,0 +1,159 @@
+{
+  "date": "2026-11-10",
+  "hardware": "RTX 3050 laptop GPU, 4 GB",
+  "model": "phi3:mini + qwen2.5-coder:1.5b",
+  "tasks": 44,
+  "verified": 39,
+  "pass_rate": 0.886,
+  "errand_cost_usd": 0.00979,
+  "frontier_cost_usd": 0.556,
+  "savings_pct": 98.2,
+  "unpaid_wrong_answers": 5,
+  "median_ms": 1453,
+  "lanes": {
+    "math.final-answer": {
+      "title": "Math, final answer",
+      "tasks": 32,
+      "verified": 28,
+      "pass_rate": 0.875,
+      "errors": 0,
+      "median_ms": 1711,
+      "p95_ms": 10295,
+      "errand_cost_usd": 0.00616,
+      "frontier_cost_usd": 0.336,
+      "unpaid_wrong_answers": 4,
+      "model": "phi3:mini"
+    },
+    "code.python.tests": {
+      "title": "Python function with tests",
+      "tasks": 12,
+      "verified": 11,
+      "pass_rate": 0.917,
+      "errors": 0,
+      "median_ms": 1195,
+      "p95_ms": 1810,
+      "errand_cost_usd": 0.00363,
+      "frontier_cost_usd": 0.22,
+      "unpaid_wrong_answers": 1,
+      "model": "qwen2.5-coder:1.5b"
+    }
+  },
+  "models": [
+    {
+      "model": "qwen2.5:1.5b",
+      "tasks": 44,
+      "verified": 31,
+      "pass_rate": 0.705,
+      "errand_cost_usd": 0.00792,
+      "frontier_cost_usd": 0.452,
+      "savings_pct": 98.2,
+      "unpaid_wrong_answers": 13,
+      "median_ms": 799,
+      "lanes": {
+        "math.final-answer": {
+          "title": "Math, final answer",
+          "tasks": 32,
+          "verified": 21,
+          "pass_rate": 0.656,
+          "errors": 0,
+          "median_ms": 547,
+          "p95_ms": 689,
+          "errand_cost_usd": 0.00462,
+          "frontier_cost_usd": 0.252,
+          "unpaid_wrong_answers": 11
+        },
+        "code.python.tests": {
+          "title": "Python function with tests",
+          "tasks": 12,
+          "verified": 10,
+          "pass_rate": 0.833,
+          "errors": 0,
+          "median_ms": 1052,
+          "p95_ms": 1681,
+          "errand_cost_usd": 0.0033,
+          "frontier_cost_usd": 0.2,
+          "unpaid_wrong_answers": 2
+        }
+      }
+    },
+    {
+      "model": "qwen2.5-coder:1.5b",
+      "tasks": 44,
+      "verified": 26,
+      "pass_rate": 0.591,
+      "errand_cost_usd": 0.00693,
+      "frontier_cost_usd": 0.4,
+      "savings_pct": 98.3,
+      "unpaid_wrong_answers": 18,
+      "median_ms": 1055,
+      "lanes": {
+        "math.final-answer": {
+          "title": "Math, final answer",
+          "tasks": 32,
+          "verified": 15,
+          "pass_rate": 0.469,
+          "errors": 0,
+          "median_ms": 916,
+          "p95_ms": 2930,
+          "errand_cost_usd": 0.0033,
+          "frontier_cost_usd": 0.18,
+          "unpaid_wrong_answers": 17
+        },
+        "code.python.tests": {
+          "title": "Python function with tests",
+          "tasks": 12,
+          "verified": 11,
+          "pass_rate": 0.917,
+          "errors": 0,
+          "median_ms": 1195,
+          "p95_ms": 1810,
+          "errand_cost_usd": 0.00363,
+          "frontier_cost_usd": 0.22,
+          "unpaid_wrong_answers": 1
+        }
+      }
+    },
+    {
+      "model": "phi3:mini",
+      "tasks": 44,
+      "verified": 35,
+      "pass_rate": 0.795,
+      "errand_cost_usd": 0.00847,
+      "frontier_cost_usd": 0.476,
+      "savings_pct": 98.2,
+      "unpaid_wrong_answers": 9,
+      "median_ms": 4490,
+      "lanes": {
+        "math.final-answer": {
+          "title": "Math, final answer",
+          "tasks": 32,
+          "verified": 28,
+          "pass_rate": 0.875,
+          "errors": 0,
+          "median_ms": 1711,
+          "p95_ms": 10295,
+          "errand_cost_usd": 0.00616,
+          "frontier_cost_usd": 0.336,
+          "unpaid_wrong_answers": 4
+        },
+        "code.python.tests": {
+          "title": "Python function with tests",
+          "tasks": 12,
+          "verified": 7,
+          "pass_rate": 0.583,
+          "errors": 0,
+          "median_ms": 7269,
+          "p95_ms": 12968,
+          "errand_cost_usd": 0.00231,
+          "frontier_cost_usd": 0.14,
+          "unpaid_wrong_answers": 5
+        }
+      }
+    }
+  ],
+  "notes": {
+    "measured": "pass rate (deterministic verifiers), latency, Errand cost (Runner price plus fee, verified answers only)",
+    "estimated": "frontier cost per answer, from each Lane's baseline in errand/lanes.py",
+    "routing": "each Lane is sent to the model with the highest verified pass rate on it"
+  }
+}

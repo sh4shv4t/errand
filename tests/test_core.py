@@ -275,3 +275,28 @@ def test_seed_and_tiers(seeded):
     view = service.sender_view(seeded, "snd_alan")
     assert view["tier"]["name"] == "Regular"
     assert {r["status"] for r in service.leaderboard(seeded, MATH)} == {"active"}
+
+
+# ---------- benchmark and demo seed ----------
+
+def test_bench_combine_routes_each_lane_to_its_best_model():
+    from errand import bench
+
+    def fake(model, math_rate, code_rate):
+        rows = {}
+        for lane_id, rate in ((MATH, math_rate), (CODE, code_rate)):
+            v = int(rate * 10)
+            rows[lane_id] = {"tasks": 10, "verified": v, "pass_rate": rate, "median_ms": 1000, "p95_ms": 2000,
+                             "errand_cost_usd": 0.0002 * v, "frontier_cost_usd": 0.012 * v, "unpaid_wrong_answers": 10 - v,
+                             "errors": 0, "title": lane_id}
+        return {"model": model, "lanes": rows, "notes": {}}
+
+    out = bench.combine([fake("mathy", 0.9, 0.2), fake("cody", 0.3, 0.8)])
+    assert out["lanes"][MATH]["model"] == "mathy" and out["lanes"][CODE]["model"] == "cody"
+    assert out["verified"] == 17 and out["tasks"] == 20 and out["unpaid_wrong_answers"] == 3
+    assert len(out["models"]) == 2 and 0 < out["savings_pct"] < 100
+
+
+def test_demo_seed_leaves_out_the_villain_unless_asked(seeded):
+    names = {r[0] for r in seeded.execute("SELECT a.name FROM runners r JOIN accounts a ON a.id=r.id")}
+    assert "Shady" not in names and {"Duke", "Ada", "Atlas"} <= names

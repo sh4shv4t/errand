@@ -49,10 +49,10 @@ def cmd_reset(a) -> None:
 
 def cmd_demo(a) -> None:
     """Run a scripted session: Alan delegates a batch of errands, mystery errands audit the Runners,
-    and Shady (the model-swapper) gets caught. Prints the receipt."""
+    and with --villain, Shady (the model-swapper) gets caught. Prints the receipt."""
     if a.fresh:
         config.configure(db_path=str(Path(tempfile.mkdtemp(prefix="errand-demo-")) / "errand.db"))
-    config.configure(sim_latency_scale=a.speed)
+    config.configure(sim_latency_scale=a.speed, villain=a.villain or config.get().villain)
     from . import db, integrity, seed, service, taskbank
 
     conn = db.connect()
@@ -147,6 +147,34 @@ def cmd_connect(a) -> None:
     print("\nAsk your agent something like: \"Use Errand to solve: what is 17 * 23?\"")
 
 
+def cmd_bench(a) -> None:
+    """Benchmark a real model over the task bank and save the numbers the landing page shows."""
+    from . import bench
+
+    def progress(lane, n, total, ok, ms):
+        print(f"  {lane:18} {n:>3}/{total}  {'pass' if ok else 'FAIL'}  {ms:>6} ms", flush=True)
+
+    runs = []
+    for model in [m.strip() for m in a.model.split(",") if m.strip()]:
+        print(f"\nBenchmarking {model} at {a.base_url} on every task-bank item. Answers are checked, never trusted.\n")
+        runs.append(bench.run(model, a.base_url, a.hardware, a.limit, on_item=progress))
+    result = bench.combine(runs, a.hardware) if len(runs) > 1 else runs[0]
+    bench.save(result, Path(a.out))
+    print()
+    for r in result.get("models", [result]):
+        lanes_txt = "  ".join(f"{lane.split('.')[0]} {100 * v['pass_rate']:.0f}%" for lane, v in r["lanes"].items())
+        print(f"  {r['model']:24} verified {r['verified']}/{r['tasks']}  {lanes_txt}")
+    print("\n" + "=" * 64)
+    print(f"Routed by Errand       {result['model']}")
+    print(f"Verified              {result['verified']}/{result['tasks']}  ({100 * result['pass_rate']:.0f}%)")
+    print(f"Paid through Errand    ${result['errand_cost_usd']:.4f}  (verified answers only)")
+    print(f"Frontier estimate      ${result['frontier_cost_usd']:.4f}  for the same answers")
+    print(f"Saved                  {result['savings_pct']}%")
+    print(f"Wrong answers, unpaid  {result['unpaid_wrong_answers']}")
+    print(f"Median latency         {result['median_ms']} ms")
+    print("=" * 64 + f"\nSaved to {a.out}")
+
+
 def cmd_up(a) -> None:
     """Start everything and open the dashboard: the zero-thought way to run Errand."""
     import threading
@@ -183,7 +211,16 @@ def main(argv: list[str] | None = None) -> None:
     d.add_argument("--speed", type=float, default=0.05, help="simulated latency scale (1.0 = realistic)")
     d.add_argument("--seed", type=int, default=7)
     d.add_argument("--fresh", action="store_true", help="use a throwaway database")
+    d.add_argument("--villain", action="store_true", help="also seed Shady, who swaps models and gets slashed")
     d.set_defaults(fn=cmd_demo)
+
+    b = sub.add_parser("bench", help="benchmark a real model (e.g. via Ollama) and save numbers for the landing page")
+    b.add_argument("--model", default="phi3:mini", help="one model, or several separated by commas")
+    b.add_argument("--base-url", default="http://localhost:11434/v1")
+    b.add_argument("--hardware", default="", help="label shown with the results, e.g. 'RTX 3050 laptop, 4 GB'")
+    b.add_argument("--limit", type=int, help="max items per Lane")
+    b.add_argument("--out", default=str(Path(__file__).parent / "static" / "bench.json"))
+    b.set_defaults(fn=cmd_bench)
 
     sd = sub.add_parser("seed", help="create demo accounts and Runners")
     sd.add_argument("--no-ollama", action="store_true", help="do not auto-register local Ollama models")
