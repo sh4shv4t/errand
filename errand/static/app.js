@@ -233,7 +233,7 @@
             ${ok ? `<div class="answer">${esc(answer)}</div>
             <div class="line"><span>Lane</span><span>${esc(e.lane)}</span></div>
             <div class="line"><span>Runner price</span><span>${usd(e.price_usd, 6)}</span></div>
-            <div class="line"><span>Errand fee</span><span>${usd(e.fee_usd, 6)}</span></div>
+            <div class="line"><span>Errand fee (your half)</span><span>${usd(e.fee_usd, 6)}</span></div>
             ${e.dividend_usd ? `<div class="line"><span>Data dividend</span><span>-${usd(e.dividend_usd, 6)}</span></div>` : ""}
             <div class="line total"><span>You paid</span><span>${usd(e.total_usd, 6)}</span></div>
             <div class="line"><span>Frontier estimate</span><span>${usd(e.baseline_usd, 6)}</span></div>

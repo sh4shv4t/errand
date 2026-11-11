@@ -280,7 +280,7 @@ Rules:
 
 ## 10. Business model
 
-- **Take rate** on each settled errand (target 5% to 10%, in line with OpenRouter's reported fee [10]). Lower for Trusted Senders.
+- **Take rate** on each settled errand (target 5% to 10%, in line with OpenRouter's reported fee [10]). Lower for Trusted Senders. Decided 2026-11-11: the fee is split evenly, half paid by the Sender on top of the Runner's price and half taken from the Runner's earnings.
 - **Priority premium** priced from queue load [36].
 - **Verified tier** (TEE / spot-check) premium.
 - **Receipt pool access** fees from Runners.

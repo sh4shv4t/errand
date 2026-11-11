@@ -93,11 +93,12 @@ def test_errand_settles_escrow_and_pays_runner(conn):
     item = taskbank.items(MATH, "demo")[0]
     e = service.send_errand(conn, s, MATH, taskbank.payload_for(MATH, item), mystery_async=False)
     assert e["status"] == "completed" and e["verdict"] == "passed" and e["answer"] == item["answer"]
-    assert ledger.balance(conn, runner, "earnings") == 1000
+    assert ledger.balance(conn, runner, "earnings") == 950  # the Runner gives up half of the 10% fee
     assert ledger.balance(conn, s["id"], "escrow") == 0
-    assert e["fee_usd"] == pytest.approx(0.0001)
-    assert e["dividend_usd"] == pytest.approx(0.00002)  # consent 2 earns 20% of the fee back
-    assert ledger.balance(conn, s["id"], "wallet") == 1_000_000 - 1100 + 20
+    assert e["fee_usd"] == pytest.approx(0.00005)  # the Sender pays the other half on top
+    assert e["dividend_usd"] == pytest.approx(0.00002)  # consent 2 earns 20% of the whole fee back
+    assert ledger.balance(conn, s["id"], "wallet") == 1_000_000 - 1050 + 20
+    assert ledger.balance(conn, PLATFORM_ID, "revenue") == 100 - 20
     assert ledger.total(conn) == 0
 
 
@@ -168,7 +169,7 @@ def test_runner_without_bond_starts_and_earns_its_bond(conn):
     s = make_sender(conn, usd=1.0)
     item = taskbank.items(MATH, "demo")[0]
     service.send_errand(conn, s, MATH, taskbank.payload_for(MATH, item), mystery_async=False)
-    assert ledger.balance(conn, acct["id"], "bond") == 1000  # first earnings fill the bond
+    assert ledger.balance(conn, acct["id"], "bond") == 950  # first earnings (after its half of the fee) fill the bond
     assert ledger.balance(conn, acct["id"], "earnings") == 0
     assert ledger.total(conn) == 0
 
@@ -233,8 +234,8 @@ def test_bounty_captures_on_pass_and_voids_on_fail(conn):
     service.mock_approve(conn, b["order_id"])
     res = service.complete_order(conn, b["order_id"])
     assert res["bounty"]["status"] == "completed"
-    assert ledger.balance(conn, good, "earnings") == 2_700_000  # $3 minus 10% fee
-    assert ledger.balance(conn, PLATFORM_ID, "revenue") >= 300_000
+    assert ledger.balance(conn, good, "earnings") == 2_714_286  # $3 = price + 5%; Runner gets price - 5%
+    assert ledger.balance(conn, PLATFORM_ID, "revenue") == 285_714  # 10% of the $2.857 price, half from each side
 
     impossible = {"function_name": "nope", "spec": "unsolvable", "tests": "assert False"}
     b2 = service.start_bounty(conn, s, CODE, impossible, 3)
@@ -324,3 +325,14 @@ def test_warm_up_gives_a_fresh_demo_some_history(seeded):
     assert seed.warm_up(seeded, 12) >= 10
     assert seeded.execute("SELECT COUNT(*) FROM errands WHERE kind='live' AND status='completed'").fetchone()[0] >= 10
     assert ledger.total(seeded) == 0
+
+
+def test_platform_fee_is_split_evenly_between_sender_and_runner(conn):
+    runner = make_runner(conn, "Duke", {MATH: 0.002}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    s = make_sender(conn, usd=1.0)
+    item = taskbank.items(MATH, "demo")[0]
+    e = service.send_errand(conn, s, MATH, taskbank.payload_for(MATH, item), mystery_async=False)
+    sender_paid = 1_000_000 - ledger.balance(conn, s["id"], "wallet")
+    runner_got = ledger.balance(conn, runner, "earnings")
+    assert sender_paid - 2000 == 2000 - runner_got == 100  # 5% each side of a $0.002 price
+    assert ledger.balance(conn, PLATFORM_ID, "revenue") == 200 and e["total_usd"] == pytest.approx(0.0021)

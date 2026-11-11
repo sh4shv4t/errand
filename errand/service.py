@@ -19,6 +19,8 @@ from .paypal import client as paypal
 
 MAX_ATTEMPTS = 3
 DIVIDEND_SHARE = 0.20  # share of the platform fee returned to Senders who share Receipts (consent >= 2)
+# The platform fee (take rate, cut by Sender tier) is split evenly: the Sender pays half on top of the Runner's
+# price and the Runner gives up the other half. An errand's `fee` column stores one side's half.
 TOPUP_MIN, TOPUP_MAX = 1_000_000, 500_000_000
 STARTER_CREDIT = 1_000_000  # $1 of platform-funded credit, so a new Sender's first errands need no PayPal step
 
@@ -248,7 +250,7 @@ def send_errand(conn: sqlite3.Connection, sender: dict, lane_id: str, payload: d
 
     tier = tiers.tier_for(conn, sender["id"])
     fee_rate = config.get().take_rate * tier.fee_multiplier
-    max_price = int(budget / (1 + fee_rate))
+    max_price = int(budget / (1 + fee_rate / 2))  # the Sender's budget covers the price plus its half of the fee
     errand_id = new_id("err")
     with db.tx(conn):
         conn.execute(
@@ -276,7 +278,7 @@ def send_errand(conn: sqlite3.Connection, sender: dict, lane_id: str, payload: d
         runner = cand.runner
         tried.add(runner["id"])
         price = cand.price
-        fee = int(round(price * fee_rate))
+        fee = int(round(price * fee_rate / 2))  # each side's half
         try:
             with db.tx(conn):
                 ledger.move(conn, "escrow hold", (sender["id"], "wallet"), (sender["id"], "escrow"), price + fee, ref=errand_id)
@@ -287,12 +289,12 @@ def send_errand(conn: sqlite3.Connection, sender: dict, lane_id: str, payload: d
 
         res, answer, conf, verdict = integrity.execute(conn, errand_id, runner, lane_id, payload, "live")
         if res.ok_call and verdict.passed is not False:
-            dividend = int(fee * DIVIDEND_SHARE) if sender.get("consent_level", 0) >= 2 else 0
+            dividend = int(2 * fee * DIVIDEND_SHARE) if sender.get("consent_level", 0) >= 2 else 0
             with db.tx(conn):
                 ledger.post(conn, "errand settled", [
                     (sender["id"], "escrow", -(price + fee)),
-                    *_runner_pay(conn, runner["id"], price),
-                    (PLATFORM_ID, "revenue", fee - dividend),
+                    *_runner_pay(conn, runner["id"], price - fee),
+                    (PLATFORM_ID, "revenue", 2 * fee - dividend),
                     (sender["id"], "wallet", dividend),
                 ], ref=errand_id)
             _finish(conn, errand_id, "completed", runner_id=runner["id"], output=res.output, answer=answer,
@@ -364,6 +366,7 @@ def errand_public(e: dict, viewer: str = "sender") -> dict:
         p = json.loads(e["payload"])
         p.pop("expected", None)
         out["payload"] = p
+        out["price_usd"] = to_usd(e["price"] - e["fee"])  # what the Runner earned, after its half of the fee
         out["fee_usd"] = out["dividend_usd"] = out["baseline_usd"] = out["saved_usd"] = None
     return out
 
@@ -520,7 +523,8 @@ def _run_bounty(conn, op: dict) -> dict:
 
     sender = get_account(conn, op["account_id"])
     lane_id, payload, amount = meta["lane"], meta["payload"], op["amount"]
-    fee = int(round(amount * config.get().take_rate))
+    rate = config.get().take_rate
+    fee = int(round(amount * (rate / 2) / (1 + rate / 2)))  # each side's half; amount = price + fee
     errand_id = new_id("err")
     with db.tx(conn):
         conn.execute(
@@ -543,8 +547,8 @@ def _run_bounty(conn, op: dict) -> dict:
             with db.tx(conn):
                 ledger.post(conn, "bounty captured and paid", [
                     (PAYPAL_ID, "world", -amount),
-                    *_runner_pay(conn, cand.runner["id"], amount - fee),
-                    (PLATFORM_ID, "revenue", fee),
+                    *_runner_pay(conn, cand.runner["id"], amount - 2 * fee),
+                    (PLATFORM_ID, "revenue", 2 * fee),
                 ], ref=errand_id)
                 conn.execute("UPDATE paypal_ops SET status='settled', meta=?, updated_at=? WHERE id=?",
                              (db.dumps(meta), now(), op["id"]))

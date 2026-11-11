@@ -49,7 +49,7 @@ def run(model: str, base_url: str = "http://localhost:11434/v1", hardware: str =
             passed += ok
             if on_item:
                 on_item(lane_id, n, len(items), ok, res.latency_ms)
-        price = DEFAULT_PRICE[lane_id] * (1 + fee_rate)
+        price = DEFAULT_PRICE[lane_id] * (1 + fee_rate / 2)  # what the Sender pays: price plus its half of the fee
         baseline = lane.baseline_micros / 1e6
         out_lanes[lane_id] = {
             "title": lane.title,

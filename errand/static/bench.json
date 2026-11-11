@@ -5,9 +5,9 @@
   "tasks": 44,
   "verified": 39,
   "pass_rate": 0.886,
-  "errand_cost_usd": 0.00979,
+  "errand_cost_usd": 0.009345,
   "frontier_cost_usd": 0.556,
-  "savings_pct": 98.2,
+  "savings_pct": 98.3,
   "unpaid_wrong_answers": 5,
   "median_ms": 1453,
   "lanes": {
@@ -19,7 +19,7 @@
       "errors": 0,
       "median_ms": 1711,
       "p95_ms": 10295,
-      "errand_cost_usd": 0.00616,
+      "errand_cost_usd": 0.00588,
       "frontier_cost_usd": 0.336,
       "unpaid_wrong_answers": 4,
       "model": "phi3:mini"
@@ -32,7 +32,7 @@
       "errors": 0,
       "median_ms": 1195,
       "p95_ms": 1810,
-      "errand_cost_usd": 0.00363,
+      "errand_cost_usd": 0.003465,
       "frontier_cost_usd": 0.22,
       "unpaid_wrong_answers": 1,
       "model": "qwen2.5-coder:1.5b"
@@ -44,9 +44,9 @@
       "tasks": 44,
       "verified": 31,
       "pass_rate": 0.705,
-      "errand_cost_usd": 0.00792,
+      "errand_cost_usd": 0.00756,
       "frontier_cost_usd": 0.452,
-      "savings_pct": 98.2,
+      "savings_pct": 98.3,
       "unpaid_wrong_answers": 13,
       "median_ms": 799,
       "lanes": {
@@ -58,7 +58,7 @@
           "errors": 0,
           "median_ms": 547,
           "p95_ms": 689,
-          "errand_cost_usd": 0.00462,
+          "errand_cost_usd": 0.00441,
           "frontier_cost_usd": 0.252,
           "unpaid_wrong_answers": 11
         },
@@ -70,7 +70,7 @@
           "errors": 0,
           "median_ms": 1052,
           "p95_ms": 1681,
-          "errand_cost_usd": 0.0033,
+          "errand_cost_usd": 0.00315,
           "frontier_cost_usd": 0.2,
           "unpaid_wrong_answers": 2
         }
@@ -81,7 +81,7 @@
       "tasks": 44,
       "verified": 26,
       "pass_rate": 0.591,
-      "errand_cost_usd": 0.00693,
+      "errand_cost_usd": 0.006615,
       "frontier_cost_usd": 0.4,
       "savings_pct": 98.3,
       "unpaid_wrong_answers": 18,
@@ -95,7 +95,7 @@
           "errors": 0,
           "median_ms": 916,
           "p95_ms": 2930,
-          "errand_cost_usd": 0.0033,
+          "errand_cost_usd": 0.00315,
           "frontier_cost_usd": 0.18,
           "unpaid_wrong_answers": 17
         },
@@ -107,7 +107,7 @@
           "errors": 0,
           "median_ms": 1195,
           "p95_ms": 1810,
-          "errand_cost_usd": 0.00363,
+          "errand_cost_usd": 0.003465,
           "frontier_cost_usd": 0.22,
           "unpaid_wrong_answers": 1
         }
@@ -118,9 +118,9 @@
       "tasks": 44,
       "verified": 35,
       "pass_rate": 0.795,
-      "errand_cost_usd": 0.00847,
+      "errand_cost_usd": 0.008085,
       "frontier_cost_usd": 0.476,
-      "savings_pct": 98.2,
+      "savings_pct": 98.3,
       "unpaid_wrong_answers": 9,
       "median_ms": 4490,
       "lanes": {
@@ -132,7 +132,7 @@
           "errors": 0,
           "median_ms": 1711,
           "p95_ms": 10295,
-          "errand_cost_usd": 0.00616,
+          "errand_cost_usd": 0.00588,
           "frontier_cost_usd": 0.336,
           "unpaid_wrong_answers": 4
         },
@@ -144,7 +144,7 @@
           "errors": 0,
           "median_ms": 7269,
           "p95_ms": 12968,
-          "errand_cost_usd": 0.00231,
+          "errand_cost_usd": 0.002205,
           "frontier_cost_usd": 0.14,
           "unpaid_wrong_answers": 5
         }

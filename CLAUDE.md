@@ -20,6 +20,7 @@ Errand (unit of work), Sender (consumer), Runner (provider), Lane (task category
 - Dispatch scores `Q - lambda*price - mu*latency_p95` with Sender-set weights; deterministic (`top`) and Thompson-sampling modes; log ~1% uniform-random dispatch for offline replay.
 - Runner confidence is scored with a proper scoring rule (Brier/log).
 - Escrow: Runners are paid on verified success.
+- The platform fee (10%, cut by Sender tier) is split evenly: the Sender pays half on top of the Runner's price, the Runner gives up the other half. An errand's `fee` column holds one side's half.
 - Priority is priced by queue externality, not given free; reserve capacity for small Senders.
 - Receipts are opt-in (levels 0 to 3), default private, credited by measured value.
 - Centralized evaluation first; keep interfaces open to decentralizing later.
