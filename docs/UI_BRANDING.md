@@ -161,7 +161,7 @@ Use `text-wrap: balance` on headings as a progressive enhancement, never as a la
 4. **Forest band (dark section):** measured results in huge mono numbers, with Crest highlights allowed.
 5. **The villain:** Shady's card, showing the swap detected, the Bond slashed and the refund.
 6. **Connect in one click:** client logos in monochrome Ink, with the copyable one-liner.
-7. **PayPal flow:** the money diagram from `Paypal_hackathon.md`, redrawn in the palette.
+7. **PayPal flow:** the money flow (top-up, escrow, payout), drawn in the palette.
 8. **Footer:** small, cream, the tagline in serif italic.
 
 **Nature imagery (optional, the "Perplexity nature" feel):** one or two full-bleed photographs as section breaks: ant trails, bees, a forest canopy. Errands are what colonies do. Show them as **Forest-and-Paper duotones** (an SVG `feColorMatrix` filter or a CSS blend over a Forest layer), so photos never add new colors. Use properly licensed images (Unsplash licence or our own) and credit them in the footer.

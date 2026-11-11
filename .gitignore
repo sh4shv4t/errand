@@ -19,3 +19,8 @@ dist/
 # demo video renders and scratch data
 demo/out/
 apimatic/portal/
+
+# private hackathon planning notes (kept locally, not published)
+Paypal_hackathon.md
+docs/DEVPOST.md
+docs/FINISH.md

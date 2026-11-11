@@ -8,8 +8,20 @@ Draft 2's agent scene is real (a live `demo/coding_agent.py` run) but does not l
 
 - [ ] Film a real session in a coding agent people recognise (for example Claude Code or Cursor) with the Errand MCP server connected via `errand connect`, working in a small real repo: the user asks for a feature, the agent calls `delegate`, the verified code lands in the file, tests run.
 - [ ] Show the agent's normal UI as it is (tool-call approval, diff view), not a mock-up of it; record the actual screen.
-- [ ] Keep it short: about 20 seconds, with time-lapse over model think time, then cut to the same errand in the Errand dashboard.
+- [ ] Give it room: up to about a minute, with time-lapse over model think time, then cut to the same errand in the Errand dashboard.
 - [ ] If filming a real third-party agent is not practical, restyle `demo/coding_agent.py` as an obviously generic agent CLI rather than imitating any product's look.
+
+## High priority: final demo video (full 3 minutes)
+
+The budget is the full 3 minutes, so the cut can breathe.
+
+- [ ] Slower, more natural pacing: longer holds on each idea, gentler eased zooms (a bit more time per camera move), and no hard jumps between scenes.
+- [ ] Softer transitions: cross-fades or match cuts between scenes instead of straight cuts.
+- [ ] More animation: animated title cards, a short problem statement up front, animated callouts on key moments (escrow held then released, verified stamp, money arriving), and an animated architecture or money-flow diagram.
+- [ ] Real PayPal sandbox moments: the checkout page, and ideally a Runner payout landing.
+- [ ] Keep numbers few and hard-hitting (98% cheaper, nothing paid for wrong answers); no hardware details.
+- [ ] Jingle only, or very soft tonal cues; no noisy whooshes.
+- [ ] End card with the live demo URL and GitHub link.
 
 ## Agent-facing CLI
 
