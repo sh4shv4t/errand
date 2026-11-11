@@ -4,7 +4,8 @@
 {% block content %}
 <p class="eyebrow">Sender Console</p>
 <h1>{{ acct.name }}</h1>
-<p class="sub">Describe a task. Errand matches the optimal specialist model, verifies the output, and settles payment via PayPal only when the work checks out.</p>
+<p class="sub">Describe a task. Errand matches the optimal specialist model, verifies the output, and settles payment
+  via PayPal only when the work checks out.</p>
 
 <div class="kpis">
   <div class="kpi accent">
@@ -46,9 +47,11 @@
 
     <form id="errand-form">
       <label for="task">Task</label>
-      <textarea id="task" required placeholder="A train travels 216 km in 12 hours. What is its speed in km/h?"></textarea>
+      <textarea id="task" required
+        placeholder="A train travels 216 km in 12 hours. What is its speed in km/h?"></textarea>
 
-      <label for="check">Check <span class="muted">(optional: expected answer, or Python asserts for code)</span></label>
+      <label for="check">Check <span class="muted">(optional: expected answer, or Python asserts for
+          code)</span></label>
       <textarea id="check" style="min-height:56px" placeholder="18"></textarea>
       <div class="small muted" style="margin-top:6px;">
         🔒 <b>Pay on proof:</b> Escrow captures funds only if verification passes. Wrong answers are never charged.
@@ -69,7 +72,8 @@
 
       <div class="actions" style="margin-top:20px;">
         <button class="accent" type="submit" id="send-btn">Send errand <span class="arrow">→</span></button>
-        <button class="ghost small" type="button" id="bounty-btn" title="Post this errand with a direct PayPal authorization escrow">Post PayPal bounty</button>
+        <button class="ghost small" type="button" id="bounty-btn"
+          title="Post this errand with a direct PayPal authorization escrow">Post PayPal bounty</button>
       </div>
     </form>
     <div id="result" class="result" aria-live="polite"></div>
@@ -79,7 +83,8 @@
     <div class="card">
       <h2>Connect your agent</h2>
       <p class="muted small">One command wires the <code>delegate</code> tool into Claude, Cursor, or VS Code.</p>
-      <pre id="connect-cmd">claude mcp add --transport http errand {{ base_url }}/mcp --header "Authorization: Bearer {{ api_key }}"</pre>
+      <pre
+        id="connect-cmd">claude mcp add --transport http errand {{ base_url }}/mcp --header "Authorization: Bearer {{ api_key }}"</pre>
       <div class="actions" style="margin-top:10px">
         <button class="ghost small" data-copy="#connect-cmd">Copy command</button>
         <a class="small" href="/connect">More clients →</a>
@@ -89,7 +94,7 @@
     <div class="card">
       <h2>Add funds with PayPal</h2>
       <p class="muted small">Prepaid escrow balance for your agents. You approve via PayPal Sandbox checkout.</p>
-      
+
       <div class="preset-chips">
         <button type="button" class="chip-btn topup-preset" data-amt="5">$5</button>
         <button type="button" class="chip-btn topup-preset" data-amt="10">$10</button>
