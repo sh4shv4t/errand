@@ -317,3 +317,10 @@ def test_code_errand_with_broken_tests_is_bounced_for_free(conn):
         service.delegate(conn, s, "Write is_palindrome(s).", "assert is_palindrome('I'm')")
     assert ledger.balance(conn, s["id"], "wallet") == 1_000_000
     assert conn.execute("SELECT COUNT(*) FROM attempts").fetchone()[0] == 4  # only Ada's onboarding exam
+
+
+def test_warm_up_gives_a_fresh_demo_some_history(seeded):
+    from errand import seed
+    assert seed.warm_up(seeded, 12) >= 10
+    assert seeded.execute("SELECT COUNT(*) FROM errands WHERE kind='live' AND status='completed'").fetchone()[0] >= 10
+    assert ledger.total(seeded) == 0

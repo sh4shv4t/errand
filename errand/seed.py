@@ -100,3 +100,27 @@ def seed(conn, with_ollama: bool = True) -> dict:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(keys, indent=2), encoding="utf-8")
     return keys
+
+
+def warm_up(conn, n: int, rng_seed: int = 7) -> int:
+    """Run n demo errands as Alan so a fresh hosted instance has receipts, savings and ratings to show.
+    Uses the built-in task bank, so the simulated Runners can answer. Returns how many completed."""
+    import random
+
+    rng = random.Random(rng_seed)
+    scale = config.get().sim_latency_scale
+    config.configure(sim_latency_scale=0.0)
+    done = 0
+    try:
+        for _ in range(n):
+            lane = CODE if rng.random() < 0.25 else MATH
+            item = rng.choice(taskbank.items(lane, "demo"))
+            try:
+                e = service.send_errand(conn, service.get_account(conn, "snd_alan"), lane,
+                                        taskbank.payload_for(lane, item), mystery_async=False)
+            except service.ErrandError:
+                break
+            done += e["status"] == "completed"
+    finally:
+        config.configure(sim_latency_scale=scale)
+    return done

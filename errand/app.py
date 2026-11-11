@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
@@ -33,6 +34,9 @@ async def lifespan(app: FastAPI):
         db.init(conn)
         if config.get().demo and not seed.is_seeded(conn):
             seed.seed(conn)
+            # hosted demos start empty; ERRAND_WARMUP=30 gives judges receipts and savings to look at
+            if int(os.environ.get("ERRAND_WARMUP", "0") or 0) > 0:
+                seed.warm_up(conn, int(os.environ["ERRAND_WARMUP"]))
     finally:
         conn.close()
     # A session manager runs once per instance, so every startup gets a fresh MCP app.

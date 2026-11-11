@@ -8,6 +8,11 @@ services:
     envVars:
       - key: ERRAND_DEMO
         value: "1"
+      # run 30 demo errands on first boot so the hosted demo has receipts, savings and ratings
+      - key: ERRAND_WARMUP
+        value: "30"
+      - key: ERRAND_SIM_LATENCY_SCALE
+        value: "0.6"
       # ERRAND_BASE_URL is optional here: Render's RENDER_EXTERNAL_URL is picked up automatically
       - key: PAYPAL_CLIENT_ID
         sync: false
