@@ -1,0 +1,886 @@
+{
+  "info": {
+    "name": "Errand API",
+    "description": "Send your model on fewer errands. Delegate sub-tasks to cheaper specialist models and pay through PayPal only when the answer checks out.\n\nSet `base_url` and `api_key` (a Sender key; `errand keys` prints the demo ones), then start with the Quickstart folder.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "api_key",
+      "value": "erk_YOUR_SENDER_KEY"
+    }
+  ],
+  "item": [
+    {
+      "name": "Quickstart",
+      "item": [
+        {
+          "name": "Delegate a math job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/delegate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "delegate"
+              ]
+            },
+            "description": "One call. Errand picks the Lane and the specialist, checks the answer against `check`, and only then pays.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"task\": \"A train travels 216 km in 12 hours at a constant speed. What is its speed in km per hour?\",\n  \"check\": \"18\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delegate a code job (with tests)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/delegate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "delegate"
+              ]
+            },
+            "description": "Code needs tests in `check`. Payment is released only if they pass; failed attempts are retried elsewhere for free.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"task\": \"Write a Python function is_palindrome(s) that ignores case and spaces.\",\n  \"check\": \"assert is_palindrome('racecar')\\nassert is_palindrome('Never odd or even')\\nassert not is_palindrome('hello')\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delegate to a Runner you pick",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/delegate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "delegate"
+              ]
+            },
+            "description": "Pin a Runner by name or id. If it is unavailable or over budget, Errand falls back to the next best one.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"task\": \"What is 17 * 23?\",\n  \"check\": \"391\",\n  \"runner\": \"Atlas\",\n  \"budget_usd\": 0.01\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List Runners you can pick",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/runners",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "runners"
+              ]
+            },
+            "description": "Active specialists with their Lanes and prices."
+          }
+        },
+        {
+          "name": "Wallet, tier and savings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "me"
+              ]
+            },
+            "description": "Balance, 30-day spend and how much you saved versus a frontier model."
+          }
+        },
+        {
+          "name": "Your errands",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/errands",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "errands"
+              ]
+            },
+            "description": "Every errand with its verdict, Runner, cost and savings."
+          }
+        },
+        {
+          "name": "Top up with PayPal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/wallet/topup",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "wallet",
+                "topup"
+              ]
+            },
+            "description": "Returns a PayPal approval link (Orders v2, CAPTURE). A human opens it and approves; the wallet is credited on return.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount_usd\": 5,\n  \"purpose\": \"wallet\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Post a PayPal bounty",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/bounties",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "bounties"
+              ]
+            },
+            "description": "PayPal Orders v2 with intent AUTHORIZE: captured only if the answer verifies, voided otherwise.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"task\": \"What is 12% of 2450?\",\n  \"check\": \"294\",\n  \"amount_usd\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "All endpoints",
+      "item": [
+        {
+          "name": "GET /v1/config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/config",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "config"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "POST /v1/accounts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/accounts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "accounts"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"\",\n  \"name\": \"\",\n  \"email\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /v1/me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "me"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "PATCH /v1/me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "me"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"consent_level\": 0,\n  \"cap_per_errand_usd\": 0,\n  \"cap_daily_usd\": 0,\n  \"preset\": \"\",\n  \"paypal_email\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /v1/tools",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/tools?format=openai",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "tools"
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "openai"
+                }
+              ]
+            },
+            "description": "Tool definitions for agents that do not speak MCP (OpenAI / Anthropic function calling)."
+          }
+        },
+        {
+          "name": "GET /v1/lanes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/lanes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "lanes"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "GET /v1/recommend",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/recommend?lane=&preset=balanced&budget_usd=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "recommend"
+              ],
+              "query": [
+                {
+                  "key": "lane",
+                  "value": ""
+                },
+                {
+                  "key": "preset",
+                  "value": "balanced"
+                },
+                {
+                  "key": "budget_usd",
+                  "value": ""
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "POST /v1/errands",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/errands",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "errands"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lane\": \"\",\n  \"payload\": {},\n  \"budget_usd\": 0,\n  \"preset\": \"\",\n  \"mode\": \"sample\",\n  \"runner\": \"\",\n  \"fallback\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /v1/errands",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/errands?limit=200",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "errands"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "200"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "POST /v1/delegate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/delegate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "delegate"
+              ]
+            },
+            "description": "One call: describe the task, optionally give an expected answer or assert tests. Errand does the rest.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"task\": \"\",\n  \"check\": \"\",\n  \"budget_usd\": 0,\n  \"runner\": \"\",\n  \"preset\": \"\",\n  \"fallback\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /v1/stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "stats"
+              ]
+            },
+            "description": "Public headline numbers for the landing page."
+          }
+        },
+        {
+          "name": "GET /v1/runners",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/runners",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "runners"
+              ]
+            },
+            "description": "Active Runners a Sender can pin, with their Lanes and prices."
+          }
+        },
+        {
+          "name": "GET /v1/errands/{errand_id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/errands/{{errand_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "errands",
+                "{{errand_id}}"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "POST /v1/errands/{errand_id}/feedback",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/errands/{{errand_id}}/feedback",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "errands",
+                "{{errand_id}}",
+                "feedback"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accepted\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /v1/wallet/topup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/wallet/topup",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "wallet",
+                "topup"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount_usd\": 0,\n  \"purpose\": \"wallet\",\n  \"return_path\": \"/dashboard\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /v1/bounties",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/bounties",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "bounties"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount_usd\": 0,\n  \"lane\": \"\",\n  \"payload\": {},\n  \"task\": \"\",\n  \"check\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /v1/paypal/ops",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/paypal/ops",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "paypal",
+                "ops"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "PUT /v1/runner/profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/runner/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "runner",
+                "profile"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"declared_model\": \"\",\n  \"lanes\": {},\n  \"kind\": \"openai\",\n  \"config\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /v1/runner/withdraw",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/runner/withdraw",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "runner",
+                "withdraw"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount_usd\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /v1/runner/receipts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/runner/receipts?lane=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "runner",
+                "receipts"
+              ],
+              "query": [
+                {
+                  "key": "lane",
+                  "value": ""
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "GET /v1/leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/leaderboard?lane=math.final-answer",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "leaderboard"
+              ],
+              "query": [
+                {
+                  "key": "lane",
+                  "value": "math.final-answer"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "GET /v1/platform/overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/platform/overview",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "platform",
+                "overview"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "GET /v1/platform/ledger",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/platform/ledger",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "platform",
+                "ledger"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "POST /v1/platform/mystery",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/platform/mystery?lane=math.final-answer",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "platform",
+                "mystery"
+              ],
+              "query": [
+                {
+                  "key": "lane",
+                  "value": "math.final-answer"
+                }
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "GET /v1/demo/tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/demo/tasks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "demo",
+                "tasks"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    }
+  ]
+}

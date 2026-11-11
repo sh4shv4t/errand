@@ -68,3 +68,14 @@ def test_recommend_and_leaderboard(client):
     assert rec["runners"] and rec["should_delegate"]
     lb = client.get("/v1/leaderboard", params={"lane": "code.python.tests"}).json()
     assert {r["name"] for r in lb} >= {"Ada", "Atlas"}
+
+
+def test_postman_collection_matches_the_api(client):
+    from errand import postman
+
+    col = postman.collection(client.get("/openapi.json").json())
+    quick, everything = col["item"]
+    assert quick["name"] == "Quickstart" and any("/v1/delegate" in i["request"]["url"]["raw"] for i in quick["item"])
+    paths = {i["request"]["url"]["raw"].split("?")[0].replace("{{base_url}}", "") for i in everything["item"]}
+    assert "/v1/delegate" in paths and all(p.startswith("/v1/") for p in paths)
+    assert col["auth"]["type"] == "bearer"

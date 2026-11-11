@@ -16,7 +16,8 @@ from . import config
 def cmd_serve(a) -> None:
     import os
     import uvicorn
-    if a.port != 8000 and "ERRAND_BASE_URL" not in os.environ:
+    # a local server on another port links to itself; hosted ones (Render sets RENDER_EXTERNAL_URL) keep their public URL
+    if a.port != 8000 and "ERRAND_BASE_URL" not in os.environ and "RENDER_EXTERNAL_URL" not in os.environ:
         os.environ["ERRAND_BASE_URL"] = f"http://localhost:{a.port}"  # read again when uvicorn imports the app
         config.configure(base_url=os.environ["ERRAND_BASE_URL"])
     print(f"Errand on http://{'localhost' if a.host in ('0.0.0.0', '127.0.0.1') else a.host}:{a.port}  "
@@ -175,6 +176,15 @@ def cmd_bench(a) -> None:
     print("=" * 64 + f"\nSaved to {a.out}")
 
 
+def cmd_postman(a) -> None:
+    """Write a Postman collection generated from the live OpenAPI spec."""
+    from . import postman
+
+    col = postman.write(Path(a.out), a.base_url)
+    n = sum(len(f["item"]) for f in col["item"])
+    print(f"wrote {a.out} ({n} requests). In Postman: Import, pick the file, then set base_url and api_key.")
+
+
 def cmd_up(a) -> None:
     """Start everything and open the dashboard: the zero-thought way to run Errand."""
     import threading
@@ -221,6 +231,11 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--limit", type=int, help="max items per Lane")
     b.add_argument("--out", default=str(Path(__file__).parent / "static" / "bench.json"))
     b.set_defaults(fn=cmd_bench)
+
+    pm = sub.add_parser("postman", help="export a Postman collection generated from the API's OpenAPI spec")
+    pm.add_argument("--out", default="postman/Errand.postman_collection.json")
+    pm.add_argument("--base-url", default="http://localhost:8000")
+    pm.set_defaults(fn=cmd_postman)
 
     sd = sub.add_parser("seed", help="create demo accounts and Runners")
     sd.add_argument("--no-ollama", action="store_true", help="do not auto-register local Ollama models")

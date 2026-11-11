@@ -94,15 +94,22 @@ errand up                 start and open the dashboard
 errand serve [--port]     start the gateway only
 errand demo [-n 40]       scripted session with a printed receipt (--villain adds Shady)
 errand bench --model ... benchmark real models, save numbers for the landing page
+errand postman            export a Postman collection generated from the OpenAPI spec
 errand connect [client]   wire Errand into MCP clients (or: all, print)
 errand keys               show demo API keys
 errand reset --yes        delete the local database
 errand-mcp                stdio MCP server
 ```
 
+## Try the API in Postman
+
+[postman/Errand.postman_collection.json](postman/Errand.postman_collection.json) is generated from Errand's own OpenAPI spec (`errand postman` rebuilds it), so it always matches the real API. In Postman: **Import**, pick the file, then set the collection variables `base_url` (for example `http://localhost:8000` or the hosted demo) and `api_key` (a Sender key; `errand keys` prints the demo ones). Start with the **Quickstart** folder: delegate a math job, delegate a code job with tests, pin a Runner, check your wallet, top up with PayPal, post a PayPal bounty. The raw spec is in [postman/openapi.json](postman/openapi.json) and live at `/openapi.json`.
+
 ## Deploy
 
-[render.yaml](render.yaml) is a one-click Render Blueprint. Its public URL is detected automatically. On the free plan, demo data re-seeds on each deploy.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/sh4shv4t/errand)
+
+[render.yaml](render.yaml) is a one-click Render Blueprint (Docker, free plan). Its public URL is detected automatically, and on first boot it runs 30 demo errands (`ERRAND_WARMUP`) so the hosted demo has receipts, savings and rankings to show. Add `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` in the Render dashboard to switch from mock to the PayPal sandbox. Free-plan storage is ephemeral, so demo data re-seeds on each deploy, and the service sleeps after 15 idle minutes (the first visit after that takes about a minute).
 
 ## Limitations (honest list)
 
