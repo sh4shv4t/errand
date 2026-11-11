@@ -336,6 +336,98 @@ button.small, .btn.small {
 /* ==========================================================================
    MINIMALIST HERO (Clean, open, serene space)
    ========================================================================== */
+/* ==========================================================================
+   MINIMALIST SANCTUARY HERO (Directly matching inspiration image)
+   ========================================================================== */
+.hero-sanctuary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 40px;
+  align-items: center;
+  padding: 68px 0 56px;
+  position: relative;
+}
+@media (max-width: 860px) {
+  .hero-sanctuary { grid-template-columns: 1fr; padding-top: 32px; }
+  .hero-sanctuary-visual { display: none; }
+}
+
+.sanctuary-headline {
+  font-family: var(--sans);
+  font-size: clamp(48px, 7.5vw, 84px);
+  line-height: 0.98;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--sand);
+  margin: 0 0 24px;
+}
+[data-theme="paper"] .sanctuary-headline {
+  color: var(--text-main);
+}
+
+.sanctuary-lead {
+  font-size: clamp(15px, 1.8vw, 16.5px);
+  line-height: 1.68;
+  color: var(--text-muted);
+  max-width: 440px;
+  margin: 0 0 32px;
+  font-weight: 400;
+}
+[data-theme="paper"] .sanctuary-lead {
+  color: var(--text-muted);
+}
+
+.sanctuary-action {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-sanctuary-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eec4a4 0%, #d4955b 100%);
+  color: #0c261e;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 13px 34px;
+  border-radius: var(--radius-pill);
+  border: none;
+  box-shadow: 0 10px 26px -6px rgba(212, 149, 91, 0.4);
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.btn-sanctuary-pill:hover {
+  background: linear-gradient(135deg, #f7d7be 0%, #e0a36b 100%);
+  box-shadow: 0 14px 32px -4px rgba(212, 149, 91, 0.55);
+  transform: translateY(-2px);
+}
+[data-theme="paper"] .btn-sanctuary-pill {
+  background: linear-gradient(135deg, var(--terracotta) 0%, var(--terracotta-dark) 100%);
+  color: #ffffff;
+}
+
+.hero-sanctuary-visual {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+.botanical-leaves-svg {
+  width: 100%;
+  max-width: 380px;
+  height: auto;
+  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.35));
+  animation: leaf-float 6s ease-in-out infinite alternate;
+}
+@keyframes leaf-float {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-8px) rotate(1.2deg); }
+}
+
 .hero-minimal {
   padding: 64px 0 54px;
   max-width: 820px;

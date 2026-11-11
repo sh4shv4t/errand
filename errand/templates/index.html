@@ -1,20 +1,48 @@
 {% extends "base.html" %}
 {% block page %}index{% endblock %}
 {% block content %}
-<!-- Minimalist Serene Hero -->
-<section class="hero-minimal">
-  <p class="eyebrow"><span class="badge live">PayPal Sandbox Escrow</span> Model Delegation</p>
-  <h1>Send your model on <span class="serif">fewer</span> errands.</h1>
-  <p class="lead">Frontier AI shouldn't spend expensive tokens on well-scoped math or standard helper code. Your agent delegates to <b>cheaper specialist models</b>, and you <b>only pay when the answer checks out</b>.</p>
-  <div class="actions">
-    {% if acct %}
-      <a class="btn accent" href="/dashboard">Open dashboard <span class="arrow">→</span></a>
-    {% else %}
-      <form method="post" action="/login/demo/snd_alan" style="margin:0">
-        <button class="accent" type="submit">Try demo as Alan <span class="arrow">→</span></button>
-      </form>
-      <a class="btn ghost" href="/signup?kind=runner">Earn with your model</a>
-    {% endif %}
+<!-- Minimalist Sanctuary Hero (from inspiration reference) -->
+<section class="hero-sanctuary">
+  <div class="hero-sanctuary-content">
+    <h1 class="sanctuary-headline">Send fewer<br>errands</h1>
+    <p class="sanctuary-lead">Your AI delegates well-scoped jobs to cheaper specialist models. Verification runs automatically. You only pay when the answer checks out.</p>
+    <div class="sanctuary-action">
+      {% if acct %}
+        <a class="btn-sanctuary-pill" href="/dashboard">Open dashboard</a>
+      {% else %}
+        <form method="post" action="/login/demo/snd_alan" style="margin:0">
+          <button class="btn-sanctuary-pill" type="submit">Try Errand</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="hero-sanctuary-visual" aria-hidden="true">
+    <svg viewBox="0 0 380 340" fill="none" class="botanical-leaves-svg">
+      <defs>
+        <linearGradient id="leafGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#4e7f60"/>
+          <stop offset="100%" stop-color="#1b4332"/>
+        </linearGradient>
+        <linearGradient id="leafGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#e8bf9c"/>
+          <stop offset="100%" stop-color="#9a5a39"/>
+        </linearGradient>
+        <linearGradient id="leafGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#3d6c50"/>
+          <stop offset="100%" stop-color="#123325"/>
+        </linearGradient>
+      </defs>
+      <!-- Big green botanical leaf -->
+      <path d="M220 20 C 320 60, 360 190, 310 280 C 240 290, 160 210, 170 120 C 180 60, 200 30, 220 20 Z" fill="url(#leafGrad1)" opacity="0.9"/>
+      <path d="M220 20 Q 240 140 310 280" stroke="rgba(245, 237, 227, 0.2)" stroke-width="2"/>
+      <!-- Golden/clay dried botanical leaf (like reference) -->
+      <path d="M140 120 C 210 140, 240 240, 190 320 C 140 310, 80 250, 90 190 C 100 150, 120 130, 140 120 Z" fill="url(#leafGrad2)" opacity="0.95"/>
+      <path d="M140 120 Q 150 210 190 320" stroke="rgba(12, 38, 30, 0.3)" stroke-width="1.8"/>
+      <!-- Small accent leaf -->
+      <path d="M90 60 C 150 70, 170 140, 130 180 C 90 180, 50 140, 60 100 C 70 80, 80 65, 90 60 Z" fill="url(#leafGrad3)" opacity="0.85"/>
+      <path d="M90 60 Q 100 120 130 180" stroke="rgba(245, 237, 227, 0.15)" stroke-width="1.5"/>
+    </svg>
   </div>
 </section>
 
