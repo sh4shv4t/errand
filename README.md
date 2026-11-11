@@ -53,7 +53,7 @@ Errand lets your agent **send those jobs on an errand**. One call, `delegate(tas
 
 <table>
 <tr>
-<td width="50%"><img src="assets/screens/coding-agent.png" alt="A coding agent delegating a function through Errand"><br><sub><b>A real coding agent</b> hands a function, with tests, to Errand. A cheaper specialist writes it, Errand runs the tests, and only then pays.</sub></td>
+<td width="50%"><img src="assets/screens/coding-agent.png" alt="A coding agent splitting one request into two errands"><br><sub><b>A real coding agent</b> splits one request into two errands. Two different specialists write the functions, Errand runs the tests on each, and only then pays.</sub></td>
 <td width="50%"><img src="assets/screens/dashboard-receipt.png" alt="Sender dashboard with a verified receipt"><br><sub><b>Sender dashboard.</b> Describe the job, add a check, optionally pick the Runner. Every answer comes back with a receipt and a verified stamp.</sub></td>
 </tr>
 <tr>
@@ -61,7 +61,7 @@ Errand lets your agent **send those jobs on an errand**. One call, `delegate(tas
 <td width="50%"><img src="assets/screens/rankings.png" alt="Specialist rankings"><br><sub><b>Rankings.</b> Specialists ranked by how often they're right.</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="assets/screens/paypal-sandbox-checkout.png" alt="PayPal sandbox checkout"><br><sub><b>PayPal checkout.</b> Top-ups and bounties go through real PayPal checkout.</sub></td>
+<td width="50%"><img src="assets/screens/task-flow.png" alt="What happens to an errand, step by step"><br><sub><b>What happens to an errand.</b> Checked before it's sent, paid only if the answer passes, and refunded in full if nobody gets it right.</sub></td>
 <td width="50%"><img src="assets/screens/connect.png" alt="Connect an agent page"><br><sub><b>Connect in one line.</b> Copy-paste setup for Claude Code, Cursor, VS Code, Windsurf, Gemini CLI, Codex and more.</sub></td>
 </tr>
 </table>

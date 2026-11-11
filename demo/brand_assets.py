@@ -90,6 +90,55 @@ ARCH = f"""<!doctype html><html><head>{FONTS}<style>
 </div></body></html>"""
 
 
+FLOW = f"""<!doctype html><html><head>{FONTS}<style>
+  html,body{{margin:0;background:#f4f0e6;font-family:Geist,sans-serif;color:#0b2a21}}
+  .wrap{{width:1500px;height:1000px;box-sizing:border-box;padding:48px 64px}}
+  h1{{font:500 42px/1.1 Geist;letter-spacing:-0.03em;margin:0 0 6px}} h1 i{{font:italic 400 46px 'Instrument Serif';color:#015d47}}
+  .sub{{color:#4f6b61;font-size:19px;margin:0 0 30px}}
+  .grid{{display:grid;grid-template-columns:600px 70px 1fr;row-gap:14px;align-items:center}}
+  .step{{background:#fbf9f4;border:1.5px solid rgba(11,42,33,.14);border-radius:16px;padding:15px 20px;display:flex;gap:16px;align-items:center}}
+  .step .n{{font:500 15px 'Geist Mono';color:#b83f0a;min-width:24px}} .step b{{font-size:20px;font-weight:600;display:block}}
+  .step span{{color:#4f6b61;font-size:15.5px}}
+  .q{{background:#015d47;color:#f4f0e6;border-color:#015d47}} .q span{{color:rgba(244,240,230,.8)}} .q .n{{color:#e0f354}}
+  .down{{grid-column:1;text-align:center;font:500 22px Geist;color:#015d47;line-height:1;margin:-6px 0}}
+  .arr{{text-align:center;font:500 15px 'Geist Mono';color:#4f6b61}} .arr b{{display:block;font:500 28px Geist;color:#015d47}}
+  .out{{border-radius:16px;padding:15px 20px;font-size:16.5px}} .out b{{display:block;font-size:19px;font-weight:600;margin-bottom:2px}}
+  .bad{{background:#f4dcd6;color:#7a2318}} .good{{background:#015d47;color:#f4f0e6}} .good span{{color:#e0f354}}
+  .retry{{background:#e9e3d4}} .empty{{}}
+  .foot{{margin-top:26px;display:flex;gap:12px;flex-wrap:wrap}} .chip{{background:#e9e3d4;border-radius:10px;padding:9px 14px;font-size:15.5px}}
+  .dot{{display:inline-block;width:9px;height:9px;border-radius:50%;background:#fd550a;margin-right:8px}}
+</style></head><body><div class="wrap">
+  <h1>What happens to an <i>errand</i></h1><p class="sub">From your agent's one call to a checked answer, and who pays what.</p>
+  <div class="grid">
+    <div class="step"><span class="n">01</span><div><b>Your agent calls delegate(task, check)</b><span>The job, plus the expected answer or tests</span></div></div>
+    <div></div><div></div>
+    <div class="down">↓</div><div></div><div></div>
+    <div class="step q"><span class="n">?</span><div><b>Is it ready to send?</b><span>Code has tests that parse, it fits your spending limits</span></div></div>
+    <div class="arr"><b>→</b>no</div>
+    <div class="out bad"><b>Bounced back right away</b>Your agent gets a clear reason to fix it. Nothing is charged.</div>
+    <div class="down">↓ yes</div><div></div><div></div>
+    <div class="step"><span class="n">02</span><div><b>Payment held in escrow</b><span>The specialist's price plus your half of the fee</span></div></div>
+    <div></div><div></div>
+    <div class="down">↓</div><div></div><div></div>
+    <div class="step"><span class="n">03</span><div><b>The best specialist does the work</b><span>Picked on how often it's right for this kind of job, or the one you chose</span></div></div>
+    <div></div><div></div>
+    <div class="down">↓</div><div></div><div></div>
+    <div class="step q"><span class="n">?</span><div><b>Does the answer check out?</b><span>Math compared exactly, code run against your tests</span></div></div>
+    <div class="arr"><b>→</b>yes</div>
+    <div class="out good"><b>Paid, and you get the answer</b><span>The specialist gets its price minus its half of the fee. You get a receipt.</span></div>
+    <div class="down">↓ no</div><div></div><div></div>
+    <div class="step retry"><span class="n">04</span><div><b>Refunded, and the next specialist tries</b><span>Up to three specialists, at no extra cost to you</span></div></div>
+    <div class="arr"><b>→</b>all fail</div>
+    <div class="out bad"><b>Money back in full</b>Nothing is paid for a wrong answer.</div>
+  </div>
+  <div class="foot">
+    <span class="chip"><span class="dot"></span>Hidden test questions keep checking every specialist</span>
+    <span class="chip"><span class="dot"></span>Caught swapping to a worse model: deposit slashed, you get refunded</span>
+    <span class="chip"><span class="dot"></span>Specialists cash out with PayPal Payouts</span>
+  </div>
+</div></body></html>"""
+
+
 def shot(page, html: str, path: Path, selector: str, transparent: bool = True) -> None:
     page.set_content(html)
     page.wait_for_load_state("networkidle")
@@ -107,6 +156,8 @@ def main() -> None:
         shot(page, SQUARE, ASSETS / "errand-icon.png", ".s")
         page = b.new_page(viewport={"width": 1600, "height": 1000}, device_scale_factor=1)
         shot(page, ARCH, ASSETS / "architecture.png", ".wrap", transparent=False)
+        page = b.new_page(viewport={"width": 1500, "height": 1000}, device_scale_factor=1)
+        shot(page, FLOW, ASSETS / "screens" / "task-flow.png", ".wrap", transparent=False)
         b.close()
     icon = Image.open(ASSETS / "errand-icon.png")
     icon.save(ASSETS / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])

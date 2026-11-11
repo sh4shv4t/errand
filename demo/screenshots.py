@@ -1,15 +1,13 @@
 """Product screenshots for the README and the Devpost gallery (3:2, 1500x1000).
 
 Starts a fresh demo instance (same as record.py, so PayPal runs in sandbox mode when .env has keys),
-captures the key screens, and pulls the coding-agent frame from the last recording.
+and captures the key screens. The coding-agent screenshot comes from demo/agent_shot.py.
 
     demo/.venv/Scripts/python demo/screenshots.py      -> assets/screens/*.png
 """
 
 from __future__ import annotations
 
-import json
-import subprocess
 import sys
 from pathlib import Path
 
@@ -37,24 +35,8 @@ def snap(page, name: str) -> None:
     print("saved", name)
 
 
-def agent_frame() -> None:
-    """The real coding-agent run, from the last recording: the frame where the verified code is written."""
-    raw = record.OUT / "cfr.mp4"
-    timeline = record.OUT / "timeline.json"
-    if not raw.exists() or not timeline.exists():
-        print("skip agent frame (record and edit first)")
-        return
-    events = json.loads(timeline.read_text(encoding="utf-8"))["events"]
-    t = next(e["t"] for e in events if e["kind"] == "caption" and e["text"].startswith("Errand runs the tests")) + 6.0
-    # the terminal window sits centred in the 1920x1080 frame; crop a 3:2 box around it
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{t:.2f}", "-i", str(raw), "-frames:v", "1",
-                    "-vf", "crop=1530:1020:195:30,scale=1500:1000", str(SHOTS / "coding-agent.png")], check=True)
-    print("saved coding-agent")
-
-
 def main() -> None:
     SHOTS.mkdir(parents=True, exist_ok=True)
-    agent_frame()
     server = record.start_server()
     try:
         with sync_playwright() as pw:
