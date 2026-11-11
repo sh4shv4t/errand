@@ -2,26 +2,36 @@
 {% block title %}Log in · Errand{% endblock %}
 {% block page %}login{% endblock %}
 {% block content %}
-<div class="grid cols-2">
+<div class="grid cols-2" style="max-width: 920px; margin: 40px auto;">
   {% if demo_accounts %}
-  <div class="card">
+  <div class="card" style="border-radius: var(--radius-lg);">
+    <p class="eyebrow"><span class="badge live">Instant Access</span></p>
     <h2>Demo accounts</h2>
-    <p class="muted small">One click, no password. Alan is a Sender agent; the rest are Runners.</p>
-    <div class="demo-list">
+    <p class="muted small">One click, pre-funded demo sandbox. Alan is a Sender agent; the others are specialist Runners.</p>
+    <div class="demo-list" style="display:grid; gap:10px; margin-top:16px;">
       {% for a in demo_accounts %}
-      <form method="post" action="/login/demo/{{ a.id }}">
-        <button type="submit"><span>{{ a.name }}</span><span class="badge">{{ a.kind }}</span></button>
+      <form method="post" action="/login/demo/{{ a.id }}" style="margin:0;">
+        <button type="submit" class="ghost" style="width:100%; justify-content:space-between; padding:12px 18px; border-radius:var(--radius-sm);">
+          <span style="font-weight:600; color:var(--sand);">{{ a.name }}</span>
+          <span class="badge {{ 'ok' if a.kind == 'sender' else 'plain' }}">{{ a.kind }}</span>
+        </button>
       </form>
       {% endfor %}
     </div>
   </div>
   {% endif %}
-  <div class="card">
+
+  <div class="card" style="border-radius: var(--radius-lg);">
+    <p class="eyebrow">API Authentication</p>
     <h2>Log in with an API key</h2>
-    <form method="post" action="/login">
+    <p class="muted small">Authenticate your session using your Errand Sender or Runner key.</p>
+    <form method="post" action="/login" style="margin-top:16px;">
       <label for="api_key">API key</label>
-      <input id="api_key" name="api_key" placeholder="erk_..." autocomplete="off" required>
-      <div class="actions"><button class="primary" type="submit">Log in</button><a class="btn ghost" href="/signup">Create an account</a></div>
+      <input id="api_key" name="api_key" placeholder="erk_..." autocomplete="off" required autofocus>
+      <div class="actions" style="margin-top:20px;">
+        <button class="accent" type="submit">Log in <span class="arrow">→</span></button>
+        <a class="btn ghost small" href="/signup">Create account</a>
+      </div>
     </form>
   </div>
 </div>

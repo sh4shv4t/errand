@@ -2,80 +2,83 @@
 {% block title %}Connect an agent · Errand{% endblock %}
 {% block page %}connect{% endblock %}
 {% block content %}
-<p class="eyebrow">Plug and play</p>
+<p class="eyebrow"><span class="badge live">Plug & Play</span> Model Context Protocol</p>
 <h1>Connect your <span class="serif">agent</span></h1>
-<p class="sub">Errand works with any MCP client (Claude, Cursor, VS Code Copilot, Windsurf, Gemini CLI, Codex...) and with any
-agent framework through plain HTTP or the Python SDK. Pick the fastest path for you.</p>
+<p class="sub">Errand works with any MCP client (Claude Desktop, Claude Code, Cursor, VS Code Copilot, Windsurf, Gemini CLI, Codex) and with any agent framework through plain HTTP or the Python SDK.</p>
 
-<div class="card">
-  <h2>Your key</h2>
+<div class="card" style="border-radius: var(--radius-lg);">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h2>Your API Key</h2>
+    {% if demo_key %}<span class="badge ok">Demo Key Active</span>{% endif %}
+  </div>
   {% if demo_key %}
-    <p class="muted small">This is {{ acct.name }}'s key. It is already filled into every snippet below.</p>
-    <pre id="k">{{ demo_key }}</pre><button class="ghost" data-copy="#k">Copy key</button>
+    <p class="muted small">This is {{ acct.name }}'s key. It is pre-filled into every configuration snippet below.</p>
+    <pre id="k">{{ demo_key }}</pre>
+    <button class="ghost small" data-copy="#k">Copy API Key</button>
   {% elif acct %}
-    <p class="muted small">Use the key you saved at signup in place of <code>erk_YOUR_KEY</code>.</p>
+    <p class="muted small">Use the API key you saved at signup in place of <code>erk_YOUR_KEY</code>.</p>
   {% else %}
-    <p class="muted small"><a href="/signup?kind=sender">Create a Sender account</a> to get a key, or <a href="/login">try a demo account</a>.</p>
+    <p class="muted small"><a href="/signup?kind=sender">Create a Sender account</a> to generate your API key, or <a href="/login">try a demo account</a>.</p>
   {% endif %}
 </div>
 
 <div class="grid cols-2 section">
-  <div class="card">
-    <h2>Option 1: one command</h2>
-    <p class="muted small">Detects the MCP clients on your machine and adds Errand to each one (backs up their config first).</p>
+  <div class="card" style="border-radius: var(--radius-lg);">
+    <div class="emblem-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <polyline points="4 17 10 11 4 5"/>
+        <line x1="12" y1="19" x2="20" y2="19"/>
+      </svg>
+    </div>
+    <h3>Option 1: One command setup</h3>
+    <p class="muted small">Auto-detects every MCP client installed on your system and configures Errand with zero manual JSON editing.</p>
     <pre id="c1">errand connect all{% if not demo_key %} --key erk_YOUR_KEY{% endif %}</pre>
-    <button class="ghost" data-copy="#c1">Copy</button>
-    <p class="muted small" style="margin-top:12px">Or one client: <code>errand connect cursor</code>. Options: claude-desktop, claude-code, cursor, vscode, windsurf, gemini, codex. See everything with <code>errand connect print</code>.</p>
+    <button class="ghost small" data-copy="#c1">Copy command</button>
+    <p class="muted small" style="margin-top:12px;">Or configure a single client: <code>errand connect cursor</code>, <code>claude-desktop</code>, or <code>vscode</code>.</p>
   </div>
-  <div class="card">
-    <h2>Option 2: just a URL</h2>
-    <p class="muted small">Errand serves MCP over HTTP. Any client that supports remote MCP servers needs only this:</p>
+
+  <div class="card" style="border-radius: var(--radius-lg);">
+    <div class="emblem-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="2" y1="12" x2="22" y2="12"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+    </div>
+    <h3>Option 2: Remote MCP endpoint</h3>
+    <p class="muted small">Errand serves MCP natively over streamable HTTP. Add as a remote HTTP server:</p>
     <pre id="c2">URL:    {{ base_url }}/mcp
 Header: Authorization: Bearer {{ demo_key or 'erk_YOUR_KEY' }}</pre>
-    <button class="ghost" data-copy="#c2">Copy</button>
-    <p class="muted small" style="margin-top:12px">Client only accepts a URL? Use <code>{{ base_url }}/mcp?key=...</code> (keep that URL private).</p>
+    <button class="ghost small" data-copy="#c2">Copy endpoint</button>
   </div>
 </div>
 
-<div class="card section">
-  <h2>Copy-paste config per client</h2>
-  <div class="tabs" id="client-tabs">
-    {% for title in snippets %}<button type="button" data-i="{{ loop.index0 }}" class="{{ 'active' if loop.first }}">{{ title.split(' (')[0] }}</button>{% endfor %}
+<div class="card section" style="border-radius: var(--radius-lg);">
+  <h2>Client Configuration Snippets</h2>
+  <div class="tabs" id="client-tabs" style="margin-top:14px;">
+    {% for title in snippets %}
+    <button type="button" data-i="{{ loop.index0 }}" class="{{ 'active' if loop.first }}">{{ title.split(' (')[0] }}</button>
+    {% endfor %}
   </div>
   {% for title, text in snippets.items() %}
   <div class="client-snippet" data-i="{{ loop.index0 }}" {% if not loop.first %}hidden{% endif %}>
     <p class="muted small">{{ title }}</p>
     <pre id="s{{ loop.index0 }}">{{ text }}</pre>
-    <button class="ghost" data-copy="#s{{ loop.index0 }}">Copy</button>
+    <button class="ghost small" data-copy="#s{{ loop.index0 }}">Copy snippet</button>
   </div>
   {% endfor %}
 </div>
 
-<div class="grid cols-2 section">
-  <div class="card">
-    <h2>No MCP? Use any framework</h2>
-    <p class="muted small">Python SDK, with tool schemas ready for OpenAI-style or Anthropic function calling:</p>
-<pre>from errand.client import Errand
-e = Errand(api_key="{{ demo_key or 'erk_YOUR_KEY' }}", base_url="{{ base_url }}")
-e.delegate("What is 17 * 23?", check="391")
+<div class="card section" style="border-radius: var(--radius-lg);">
+  <h2>Python SDK Integration</h2>
+  <p class="muted small">No MCP required. Use directly with LangChain, LlamaIndex, OpenAI SDK, or custom agent loops:</p>
+  <pre>from errand.client import Errand
 
-tools = e.tools("openai")          # or "anthropic"
-result = e.run_tool(name, args)    # execute the model's tool call</pre>
-    <p class="muted small">Schemas over HTTP: <a href="/v1/tools?format=openai">/v1/tools?format=openai</a> · <a href="/v1/tools?format=anthropic">anthropic</a>. Full agent example: <code>examples/openai_agent.py</code> (works with Ollama, OpenAI, Groq...).</p>
-  </div>
-  <div class="card">
-    <h2>Plain HTTP</h2>
-<pre>curl -X POST {{ base_url }}/v1/delegate \
-  -H "Authorization: Bearer {{ demo_key or 'erk_YOUR_KEY' }}" \
-  -H "Content-Type: application/json" \
-  -d '{"task":"What is 17 * 23?","check":"391"}'</pre>
-    <h2 style="margin-top:16px">Tools your agent gets</h2>
-    <ul class="small">
-      <li><code>delegate</code>: describe the task and an optional check; get a verified answer and a cost receipt. Pass <code>runner</code> to pick one.</li>
-      <li><code>list_lanes</code>, <code>recommend_runner</code>, <code>send_errand</code>: advanced control</li>
-      <li><code>give_feedback</code>, <code>wallet</code></li>
-      <li><code>request_top_up</code>: returns a PayPal link that a human approves</li>
-    </ul>
-  </div>
+errand = Errand(api_key="{{ demo_key or 'erk_YOUR_KEY' }}", base_url="{{ base_url }}")
+receipt = errand.delegate(
+    task="Write a Python function is_prime(n: int) -> bool",
+    check="assert is_prime(17) and not is_prime(4)"
+)
+print("Answer:", receipt["answer"], "Verdict:", receipt["verdict"])</pre>
 </div>
 {% endblock %}

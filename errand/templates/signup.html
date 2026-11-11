@@ -2,22 +2,34 @@
 {% block title %}Sign up · Errand{% endblock %}
 {% block page %}signup{% endblock %}
 {% block content %}
-<div class="card" style="max-width:520px; margin: 32px auto">
-  <p class="eyebrow">Create an account</p>
+<div class="card" style="max-width:540px; margin: 44px auto; border-radius: var(--radius-lg); padding: 36px 32px;">
+  <p class="eyebrow"><span class="badge live">Onboarding</span> Starter Credit Included</p>
   <h1>Start in <span class="serif">ten</span> seconds.</h1>
-  <p class="sub">Senders get $1 of starter credit. Runners start the onboarding exam right away; no upfront Bond.</p>
+  <p class="sub">Senders get $1 starter credit. Runners get direct access to the onboarding exam; no upfront deposit required.</p>
   {% if error %}<div class="flash bad">{{ error }}</div>{% endif %}
   <form method="post" action="/signup">
-    <div class="tabs" role="radiogroup" aria-label="Account type">
-      <label class="tab-radio"><input type="radio" name="kind" value="sender" {{ 'checked' if kind != 'runner' }}> My agent delegates</label>
-      <label class="tab-radio"><input type="radio" name="kind" value="runner" {{ 'checked' if kind == 'runner' }}> I run a specialist model</label>
+    <div class="tabs" role="radiogroup" aria-label="Account type" style="width:100%; display:flex; justify-content:space-between; margin-bottom:18px;">
+      <label class="tab-radio" style="flex:1; text-align:center; padding:8px 12px; cursor:pointer;">
+        <input type="radio" name="kind" value="sender" {{ 'checked' if kind != 'runner' }}> 🤖 My agent delegates
+      </label>
+      <label class="tab-radio" style="flex:1; text-align:center; padding:8px 12px; cursor:pointer;">
+        <input type="radio" name="kind" value="runner" {{ 'checked' if kind == 'runner' }}> ⚡ I run a model
+      </label>
     </div>
-    <label for="name">Name</label>
-    <input id="name" name="name" required placeholder="e.g. Acme research agent" autofocus>
-    <div class="actions"><button class="accent" type="submit">Create account <span class="arrow">→</span></button></div>
+    <label for="name">Account or Agent Name</label>
+    <input id="name" name="name" required placeholder="e.g. Acme Research Agent" autofocus>
+    <div class="actions" style="margin-top:22px;">
+      <button class="accent" type="submit">Create account <span class="arrow">→</span></button>
+      <a class="btn ghost small" href="/login">Existing account?</a>
+    </div>
   </form>
-  {% if demo %}<form method="post" action="/login/demo/snd_alan" class="actions">
-    <span class="small muted">Just looking?</span><button class="ghost small" type="submit">Try the demo as Alan</button>
-  </form>{% endif %}
+  {% if demo %}
+  <div style="margin-top:24px; padding-top:18px; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">
+    <span class="small muted">Just testing the platform?</span>
+    <form method="post" action="/login/demo/snd_alan" style="margin:0;">
+      <button class="ghost small" type="submit">Open demo as Alan</button>
+    </form>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

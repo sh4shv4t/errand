@@ -53,6 +53,34 @@
     navigator.clipboard.writeText($(b.dataset.copy).textContent.trim()).then(() => toast("Copied", "ok"));
   }));
 
+  // theme toggle
+  const themeBtn = $("#theme-toggle");
+  const themeIcon = $("#theme-icon");
+  const themeLabel = $("#theme-label");
+  function updateThemeUI(t) {
+    if (!themeIcon || !themeLabel) return;
+    if (t === "paper") {
+      themeIcon.textContent = "📜";
+      themeLabel.textContent = "Paper";
+    } else {
+      themeIcon.textContent = "🌿";
+      themeLabel.textContent = "Forest";
+    }
+  }
+  const currentTheme = document.documentElement.getAttribute("data-theme") || "forest";
+  updateThemeUI(currentTheme);
+
+  if (themeBtn) {
+    themeBtn.addEventListener("click", () => {
+      const isPaper = document.documentElement.getAttribute("data-theme") === "paper";
+      const next = isPaper ? "forest" : "paper";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("errand_theme", next);
+      updateThemeUI(next);
+      toast(`Switched to ${next === "paper" ? "Warm Paper" : "Botanical Forest"} theme`, "ok");
+    });
+  }
+
   // ---------- motion: progress line, nav, hover pill, reveals, counters (docs/UI_BRANDING.md section 5) ----------
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const nav = $(".nav"), bar = $(".progress");
@@ -242,10 +270,33 @@
             : `<div class="answer">No charge</div><p class="muted" style="margin:0">${esc(e.detail || "")}</p>`}
           </div>
         </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+          <button type="button" class="ghost small" id="copy-receipt-btn">Copy Receipt JSON</button>
+        </div>
         ${ok ? `<p class="small muted">${esc(e.detail || "")}</p><details><summary class="small">Full output</summary><pre>${esc(e.output)}</pre></details>` : ""}`;
       const chip = $("#result .escrow");
       if (chip) setTimeout(() => { chip.classList.add("released"); chip.textContent = "released to Runner"; }, 700);
+      $("#copy-receipt-btn")?.addEventListener("click", () => {
+        navigator.clipboard.writeText(JSON.stringify(e, null, 2)).then(() => toast("Receipt JSON copied to clipboard", "ok"));
+      });
     }
+
+    $("#chip-math")?.addEventListener("click", () => {
+      $("#task").value = "A train travels 216 km in 12 hours. What is its speed in km/h?";
+      $("#check").value = "18";
+      $("#task").focus();
+    });
+    $("#chip-code")?.addEventListener("click", () => {
+      $("#task").value = "Write a Python function is_palindrome(s: str) -> bool that ignores whitespace and case.";
+      $("#check").value = "assert is_palindrome('Race car')\nassert not is_palindrome('hello world')";
+      $("#task").focus();
+    });
+    $$(".topup-preset").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const inp = $("#topup-amt");
+        if (inp) inp.value = btn.dataset.amt;
+      });
+    });
 
     $("#example-btn").addEventListener("click", async () => {
       demoTasks = demoTasks || (await api("/v1/demo/tasks"));

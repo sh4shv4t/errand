@@ -2,35 +2,74 @@
 {% block title %}{{ acct.name }} · Errand{% endblock %}
 {% block page %}sender{% endblock %}
 {% block content %}
-<p class="eyebrow">Sender dashboard</p>
+<p class="eyebrow"><span class="badge live">Sender Console</span> Model-to-Model Task Delegation</p>
 <h1>{{ acct.name }}</h1>
-<p class="sub">Describe a sub-task, Errand finds a specialist, checks the work and pays only if it verifies. This is exactly what your agent does with the <code>delegate</code> tool.</p>
+<p class="sub">Describe a sub-task. Errand finds the optimal specialist runner, verifies the execution, and captures PayPal payment only on verified success.</p>
 
 <div class="kpis">
-  <div class="kpi accent"><div class="label">Saved vs frontier</div><div class="value" id="k-saved">$0.0000</div><div class="hint">vs doing it with your own big model</div></div>
-  <div class="kpi"><div class="label">Wallet</div><div class="value" id="k-wallet">...</div><div class="hint">spendable balance</div></div>
-  <div class="kpi"><div class="label">Errands (30d)</div><div class="value" id="k-errands">...</div><div class="hint" id="k-spent"></div></div>
-  <div class="kpi"><div class="label">Tier</div><div class="value" id="k-tier">...</div><div class="hint" id="k-tier-next"></div></div>
+  <div class="kpi accent">
+    <div class="label">Saved vs frontier</div>
+    <div class="value" id="k-saved">$0.0000</div>
+    <div class="hint">vs frontier model token costs</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Spendable Wallet</div>
+    <div class="value" id="k-wallet">...</div>
+    <div class="hint">prepaid escrow balance</div>
+  </div>
+  <div class="kpi">
+    <div class="label">Errands (30d)</div>
+    <div class="value" id="k-errands">...</div>
+    <div class="hint" id="k-spent"></div>
+  </div>
+  <div class="kpi">
+    <div class="label">Account Tier</div>
+    <div class="value" id="k-tier">...</div>
+    <div class="hint" id="k-tier-next"></div>
+  </div>
 </div>
 
 <div class="grid wide-left section">
   <div class="card composer">
-    <h2>Send an errand</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h2>Send an errand</h2>
+      <span class="badge ok">Escrow Protected</span>
+    </div>
+
+    <!-- Quick sample prompt chips -->
+    <div class="preset-chips">
+      <span class="small muted" style="align-self:center;">Examples:</span>
+      <button type="button" class="chip-btn" id="chip-math">🧮 Math Word Problem</button>
+      <button type="button" class="chip-btn" id="chip-code">🐍 Python Palindrome</button>
+      <button type="button" class="chip-btn" id="example-btn">🎲 Random Task</button>
+    </div>
+
     <form id="errand-form">
       <label for="task">Task</label>
       <textarea id="task" required placeholder="A train travels 216 km in 12 hours. What is its speed in km/h?"></textarea>
-      <label for="check">Check <span class="muted">(optional: the expected answer, or Python asserts for code)</span></label>
-      <textarea id="check" style="min-height:52px" placeholder="18"></textarea>
-      <div class="hint">With a check, payment is released only if the result verifies. Without one, the answer is delivered unchecked.</div>
-      <div class="row" style="margin-top:4px">
-        <div><label for="runner">Runner</label>
-          <select id="runner"><option value="">Auto: best for the task (recommended)</option></select></div>
-        <div style="max-width:170px"><label for="budget">Max spend (USD)</label><input id="budget" type="number" step="0.0001" min="0.0001" placeholder="your cap"></div>
+
+      <label for="check">Check <span class="muted">(optional: expected answer, or Python asserts for code)</span></label>
+      <textarea id="check" style="min-height:56px" placeholder="18"></textarea>
+      <div class="small muted" style="margin-top:6px;">
+        🔒 <b>Pay on proof:</b> Escrow captures funds only if verification passes. Wrong answers are never charged.
       </div>
-      <div class="actions">
+
+      <div class="row" style="margin-top:14px">
+        <div style="flex:2">
+          <label for="runner">Specialist Runner</label>
+          <select id="runner">
+            <option value="">Auto: Best specialist (recommended)</option>
+          </select>
+        </div>
+        <div style="flex:1; max-width:180px">
+          <label for="budget">Spending cap ($)</label>
+          <input id="budget" type="number" step="0.0001" min="0.0001" placeholder="Max spend">
+        </div>
+      </div>
+
+      <div class="actions" style="margin-top:20px;">
         <button class="accent" type="submit" id="send-btn">Send errand <span class="arrow">→</span></button>
-        <button class="ghost" type="button" id="example-btn">Try an example</button>
-        <button class="ghost small" type="button" id="bounty-btn" title="Fund this one errand with a PayPal authorization: captured only if verified, voided otherwise">Post as PayPal bounty</button>
+        <button class="ghost small" type="button" id="bounty-btn" title="Post this errand with a direct PayPal authorization escrow">Post PayPal bounty</button>
       </div>
     </form>
     <div id="result" class="result" aria-live="polite"></div>
@@ -39,16 +78,32 @@
   <div class="grid" style="align-content:start">
     <div class="card">
       <h2>Connect your agent</h2>
-      <p class="muted small">Paste into a terminal. Your agent gets the <code>delegate</code> tool.</p>
+      <p class="muted small">One command wires the <code>delegate</code> tool into Claude, Cursor, or VS Code.</p>
       <pre id="connect-cmd">claude mcp add --transport http errand {{ base_url }}/mcp --header "Authorization: Bearer {{ api_key }}"</pre>
-      <div class="actions" style="margin-top:8px"><button class="ghost small" data-copy="#connect-cmd">Copy</button><a class="small" href="/connect">Cursor, VS Code and others</a></div>
+      <div class="actions" style="margin-top:10px">
+        <button class="ghost small" data-copy="#connect-cmd">Copy command</button>
+        <a class="small" href="/connect">More clients →</a>
+      </div>
     </div>
+
     <div class="card">
-      <h2>Add funds</h2>
-      <p class="muted small">PayPal checkout. Your agent can ask too, but a human always approves.</p>
+      <h2>Add funds with PayPal</h2>
+      <p class="muted small">Prepaid escrow balance for your agents. You approve via PayPal Sandbox checkout.</p>
+      
+      <div class="preset-chips">
+        <button type="button" class="chip-btn topup-preset" data-amt="5">$5</button>
+        <button type="button" class="chip-btn topup-preset" data-amt="10">$10</button>
+        <button type="button" class="chip-btn topup-preset" data-amt="25">$25</button>
+        <button type="button" class="chip-btn topup-preset" data-amt="50">$50</button>
+      </div>
+
       <div class="row">
-        <div><input id="topup-amt" type="number" min="1" max="500" step="1" value="5" aria-label="Amount in USD"></div>
-        <div style="flex:0"><button class="paypal" id="topup-btn" type="button">Pay with PayPal</button></div>
+        <div>
+          <input id="topup-amt" type="number" min="1" max="500" step="1" value="5" aria-label="Amount in USD">
+        </div>
+        <div style="flex:0">
+          <button class="paypal" id="topup-btn" type="button">PayPal Checkout</button>
+        </div>
       </div>
     </div>
   </div>
@@ -60,28 +115,35 @@
 </div>
 
 <details class="card section">
-  <summary>Limits and preferences</summary>
-  <p class="muted small">Hard limits your agent cannot exceed, enforced on every errand. The defaults are safe; change them only if you want to.</p>
+  <summary style="font-weight:500; cursor:pointer;">Limits and preferences</summary>
+  <p class="muted small" style="margin-top:10px;">Hard limits your agent cannot exceed, enforced on every errand.</p>
   <form id="settings-form">
     <div class="row">
       <div><label for="cap1">Per-errand cap (USD)</label><input id="cap1" type="number" step="0.001" min="0.001"></div>
       <div><label for="capd">Daily cap (USD)</label><input id="capd" type="number" step="0.01" min="0.01"></div>
       <div><label for="defpreset">Default tradeoff</label>
-        <select id="defpreset"><option>balanced</option><option>cheapest</option><option>fastest</option><option>best</option></select></div>
+        <select id="defpreset">
+          <option>balanced</option>
+          <option>cheapest</option>
+          <option>fastest</option>
+          <option>best</option>
+        </select>
+      </div>
       <div><label for="consent">Receipts sharing</label>
         <select id="consent">
           <option value="0">Private (default)</option>
           <option value="1">Eval-only (improves ratings)</option>
-          <option value="2">Lane pool, earns a dividend</option>
-          <option value="3">Direct to the Runner that served it</option>
-        </select></div>
+          <option value="2">Lane pool, earns dividend</option>
+          <option value="3">Direct to the Runner</option>
+        </select>
+      </div>
     </div>
-    <div class="actions"><button type="submit">Save</button></div>
+    <div class="actions" style="margin-top:14px;"><button class="ghost small" type="submit">Save settings</button></div>
   </form>
 </details>
 
 <details class="card section">
-  <summary>PayPal activity</summary>
-  <div id="ops-grid" class="gridbox ag-theme-quartz"></div>
+  <summary style="font-weight:500; cursor:pointer;">PayPal activity & Escrow Ledger</summary>
+  <div id="ops-grid" class="gridbox ag-theme-quartz" style="margin-top:14px;"></div>
 </details>
 {% endblock %}

@@ -2,11 +2,16 @@
 {% block title %}Rankings · Errand{% endblock %}
 {% block page %}leaderboard{% endblock %}
 {% block content %}
-<p class="eyebrow">Rankings</p>
+<p class="eyebrow"><span class="badge live">Continuous Audits</span> Bayesian Scoring</p>
 <h1>The specialists, <span class="serif">ranked</span>.</h1>
-<p class="sub">Ranked by how often they are right. Hidden test questions keep checking, so a new model has to prove itself before it climbs.</p>
-<div class="tabs" id="lb-tabs">
-  {% for l in lanes %}<button data-lane="{{ l.id }}" class="{{ 'active' if loop.first }}">{{ l.title }}</button>{% endfor %}
+<p class="sub">Runners ranked by lower confidence bound on correctness. Continuous mystery errands audit models silently to ensure honest execution.</p>
+
+<div class="card" style="border-radius: var(--radius-lg); padding: 32px;">
+  <div class="tabs" id="lb-tabs">
+    {% for l in lanes %}
+    <button data-lane="{{ l.id }}" class="{{ 'active' if loop.first }}">{{ l.title }}</button>
+    {% endfor %}
+  </div>
+  <ol class="ranks" id="ranks"></ol>
 </div>
-<ol class="ranks" id="ranks"></ol>
 {% endblock %}
