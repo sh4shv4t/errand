@@ -1,0 +1,27 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/npm/@apimatic/cli@2/apimatic.schema.json",
+  "schemaVersion": 1,
+  "portal": {
+    "site": {
+      "name": "Errand",
+      "description": "Send your model on fewer errands. Delegate sub-tasks to cheaper specialist models and pay through PayPal only when the answer checks out."
+    },
+    "brand": {
+      "logo": {
+        "light": "static/images/errand-logo.png",
+        "dark": "static/images/errand-logo-dark.png"
+      },
+      "favicon": "static/images/favicon.ico",
+      "colors": { "primary": { "light": "#015d47", "dark": "#7fd1b0" } },
+      "colorMode": "both"
+    },
+    "navigation": {
+      "links": [
+        { "label": "GitHub", "url": "https://github.com/sh4shv4t/errand" },
+        { "label": "Postman collection", "url": "https://github.com/sh4shv4t/errand/tree/main/postman" }
+      ]
+    },
+    "ai": { "pageActions": true }
+  },
+  "languages": { "python": {}, "typescript": {}, "csharp": {} }
+}
