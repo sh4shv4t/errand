@@ -19,7 +19,7 @@
 [![Postman](https://img.shields.io/badge/API-Postman%20collection-FF6C37?style=flat-square&logo=postman&logoColor=white)](#try-the-api-in-postman)
 [![APIMatic](https://img.shields.io/badge/Docs%20%26%20SDKs-APIMatic-1A2B4C?style=flat-square)](#sdks-and-docs-portal-apimatic)
 
-**[Quick start](#quick-start)** · **[Connect your agent](#connect-your-agent)** · **[How it works](#how-it-works)** · **[PayPal](#how-paypal-is-used)**
+**[▶ Demo video](https://youtu.be/MWnmv4gJUH8)** · **[Live demo](https://errand-pt6h.onrender.com/)** · **[Quick start](#quick-start)** · **[Connect your agent](#connect-your-agent)** · **[How it works](#how-it-works)** · **[PayPal](#how-paypal-is-used)**
 
 <br>
 
