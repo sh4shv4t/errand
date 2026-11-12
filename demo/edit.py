@@ -1,15 +1,16 @@
-"""Cut the demo: eased camera zooms, captions, an original synthesized soundtrack and sound effects.
+"""Cut the demo: eased camera zooms, captions, voiceover, an original synthesized soundtrack and sound effects.
 
 Reads demo/out/raw.webm and demo/out/timeline.json (from record.py), writes demo/out/errand-demo.mp4.
 Everything audible is generated here with NumPy, so there is nothing to license.
 
-    demo/.venv/Scripts/python demo/edit.py
+    demo/.venv/Scripts/python demo/edit.py [--audio-only]   (--audio-only reuses out/zoomed.mp4)
 """
 
 from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import wave
 from pathlib import Path
 
@@ -167,59 +168,127 @@ def note(n: int) -> float:  # MIDI note -> Hz
 
 
 def soundtrack(dur: float) -> np.ndarray:
-    """A warm, unobtrusive 92 BPM loop: Am9, Fmaj7, Cmaj7, G6 pads, round bass, soft kick and hats."""
-    bpm, out = 92, np.zeros(int(dur * SR) + SR)
+    """A slow, soothing 70 BPM bed: soft sine pads (Fmaj9, Em7, Dm9, Cmaj9), a round bass and a quiet
+    music-box arpeggio. No drums, so it sits well under a voice."""
+    bpm, out = 70, np.zeros(int(dur * SR) + 4 * SR)
     beat = 60 / bpm
     bar = 4 * beat
-    chords = [[57, 60, 64, 67, 71], [53, 57, 60, 64, 69], [48, 55, 59, 64, 67], [55, 59, 62, 64, 67]]
-    bass = [45, 41, 48, 43]
-    t = 0.0
-    i = 0
-    rng = np.random.default_rng(3)
+    chords = [[53, 57, 60, 64, 67], [52, 55, 59, 62, 67], [50, 53, 57, 60, 64], [48, 52, 55, 59, 62]]
+    bass = [41, 40, 38, 36]
+    arp = [0, 2, 3, 4, 3, 2, 1, 2]
+    t, i = 0.0, 0
     while t < dur:
         c = chords[i % 4]
         start = int(t * SR)
-        pad = sum(0.6 * tone(note(m), bar, "tri") + 0.4 * tone(note(m) * 1.003, bar) for m in c) / len(c)
-        pad *= env(len(pad), 0.35, 0.6) * 0.22
-        b = tone(note(bass[i % 4]), bar * 0.95) * env(int(bar * 0.95 * SR), 0.02, 0.4) * 0.28
-        seg = out[start:start + len(pad)]
-        seg += pad[: len(seg)]
-        out[start:start + len(b)] += b[: len(out[start:start + len(b)])]
-        for k in range(4):
-            bt = start + int(k * beat * SR)
-            if k in (0, 2):  # soft kick
-                n = int(0.22 * SR)
-                f = np.linspace(110, 45, n)
-                kick = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-np.linspace(0, 9, n)) * 0.45
-                out[bt:bt + n] += kick[: len(out[bt:bt + n])]
-            hs = bt + int(beat * SR / 2)  # off-beat hat
-            n = int(0.05 * SR)
-            hat = np.diff(rng.normal(0, 1, n + 1)) * np.exp(-np.linspace(0, 8, n)) * 0.035
-            out[hs:hs + n] += hat[: len(out[hs:hs + n])]
+        n = int(bar * 1.25 * SR)  # pads overlap the next bar a little, so changes melt together
+        pad = sum(tone(note(m), bar * 1.25) + 0.5 * tone(note(m) * 1.004, bar * 1.25) for m in c) / len(c)
+        pad = pad[:n] * env(n, 0.9, 1.2) * 0.16
+        out[start:start + n] += pad[: len(out[start:start + n])]
+        bn = int(bar * SR)
+        b = (tone(note(bass[i % 4]), bar) + 0.25 * tone(note(bass[i % 4]) * 2, bar))[:bn] * env(bn, 0.08, 0.8) * 0.2
+        out[start:start + bn] += b[: len(out[start:start + bn])]
+        for k, idx in enumerate(arp):  # eighth-note music box, one octave up
+            bt = start + int(k * beat / 2 * SR)
+            m = int(1.4 * SR)
+            f = note(c[idx] + 12)
+            bell = (tone(f, 1.4) + 0.3 * tone(f * 2, 1.4))[:m] * np.exp(-np.linspace(0, 6, m)) * env(m, 0.006, 0.1)
+            out[bt:bt + m] += (bell * 0.05)[: len(out[bt:bt + m])]
         t += bar
         i += 1
     out = out[: int(dur * SR)]
-    out *= env(len(out), 1.2, 2.5)
+    out *= env(len(out), 2.0, 3.0)
     return out
 
 
 def sfx(name: str) -> np.ndarray:
-    """Soft, purely tonal cues that sit inside the jingle (no noise-based whooshes)."""
+    """Soft, purely tonal cues that sit inside the jingle."""
     if name == "click":
         n = int(0.09 * SR)
-        return (tone(880, 0.09) + 0.5 * tone(1320, 0.09)) * np.exp(-np.linspace(0, 9, n)) * 0.10
+        return (tone(880, 0.09) + 0.5 * tone(1320, 0.09))[:n] * np.exp(-np.linspace(0, 9, n)) * 0.09
+    if name == "tick":  # one call added to the bill
+        n = int(0.06 * SR)
+        return tone(1760, 0.06)[:n] * np.exp(-np.linspace(0, 12, n)) * 0.05
     if name == "ding":
         n = int(1.6 * SR)
         d = np.exp(-np.linspace(0, 4.5, n)) * env(n, 0.004, 0.2)
-        return (tone(1046.5, 1.6) * 0.6 + tone(1568, 1.6) * 0.3 + tone(2093, 1.6) * 0.08) * d * 0.16
+        return (tone(1046.5, 1.6) * 0.6 + tone(1568, 1.6) * 0.3 + tone(2093, 1.6) * 0.08)[:n] * d * 0.14
+    if name == "coin":  # two quick rising notes
+        parts = []
+        for f, d in ((1318.5, 0.08), (1975.5, 0.5)):
+            n = int(d * SR)
+            x = (tone(f, d) + 0.25 * tone(f * 2, d))[:n]
+            parts.append(x * np.exp(-np.linspace(0, 6, n)) * env(n, 0.003, 0.05))
+        return np.concatenate(parts) * 0.10
+    if name == "drop":  # the bill falls: a soft descending glide
+        n = int(0.7 * SR)
+        f = np.linspace(880, 440, n)
+        return np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.02, 0.4) * np.exp(-np.linspace(0, 2.5, n)) * 0.10
+    if name == "swell":  # scene change: a gentle rising airy chord
+        n = int(0.8 * SR)
+        x = sum(tone(note(m), 0.8)[:n] for m in (72, 76, 79)) / 3
+        return x * np.sin(np.linspace(0, np.pi, n)) ** 2 * 0.045
+    if name == "outro":  # closing chord on the end card
+        n = int(4.0 * SR)
+        x = sum(tone(note(m), 4.0)[:n] * w for m, w in ((48, 1), (55, 0.8), (64, 0.7), (67, 0.6), (71, 0.5), (74, 0.4)))
+        return x / 4 * env(n, 0.02, 2.5) * np.exp(-np.linspace(0, 1.5, n)) * 0.22
     return np.zeros(1)
+
+
+def extra_cues(events: list[dict]) -> list[dict]:
+    """Cues computed from the cut: ticks as the problem bill counts up, its drop, swells on scene changes,
+    coins on money moments and a closing chord."""
+    caps = [e for e in events if e["kind"] == "caption"]
+    cues = []
+    problem = next((e["t"] for e in caps if e["text"].startswith("Agents run on")), None)
+    if problem is not None:  # mirrors PROBLEM_HTML (play starts just before the cut-in): a call every 0.62s
+        cues += [{"kind": "sfx", "name": "tick", "t": problem + 1.5 + 0.62 * k} for k in range(10)]
+        cues.append({"kind": "sfx", "name": "drop", "t": problem + 16.7})
+    cuts = [e["t"] for e in events if e["kind"] == "cut"]
+    cues += [{"kind": "sfx", "name": "swell", "t": max(0.0, t - 0.3)} for t in cuts[1:-1]]
+    for e in caps:
+        if e["text"].startswith(("No right answer", "Specialists cash out")):
+            cues.append({"kind": "sfx", "name": "coin", "t": e["t"] + 0.6})
+    if cuts:
+        cues.append({"kind": "sfx", "name": "outro", "t": cuts[-1] + 0.4})
+    return cues
+
+
+def load_voice(dur: float) -> np.ndarray:
+    """demo/out/voice (from voice.py) as one mono track, or silence if there is none."""
+    track = np.zeros(int(dur * SR))
+    meta = OUT / "voice" / "lines.json"
+    if not meta.exists():
+        return track
+    for line in json.loads(meta.read_text(encoding="utf-8")):
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(OUT / "voice" / line["file"]), "-ac", "1",
+                              "-ar", str(SR), "-f", "f32le", "-"], capture_output=True, check=True).stdout
+        v = np.frombuffer(raw, dtype="<f4").astype(np.float64)
+        i = int(line["t"] * SR)
+        seg = track[i:i + len(v)]
+        seg += v[: len(seg)]
+    peak = np.max(np.abs(track))
+    return track / peak * 0.85 if peak else track
+
+
+def duck(voice: np.ndarray, depth: float = 0.35) -> np.ndarray:
+    """Gain for the music: drops to `depth` while the voice speaks, easing down fast and back up slowly."""
+    hop = SR // 100
+    frames = np.abs(voice[: len(voice) // hop * hop]).reshape(-1, hop).max(axis=1) > 0.02
+    hold = np.convolve(frames.astype(float), np.ones(40), "same") > 0  # bridge gaps under 0.4s
+    out, cur = np.empty(len(frames)), 1.0
+    for k, on in enumerate(hold):
+        target = depth if on else 1.0
+        cur += (target - cur) * (0.16 if target < cur else 0.06)
+        out[k] = cur
+    gain = np.repeat(out, hop)
+    return np.pad(gain, (0, len(voice) - len(gain)), constant_values=1.0)
 
 
 def mix_audio(events: list[dict], dur: float, dst: Path) -> None:
     music = soundtrack(dur)
     fx = np.zeros_like(music)
     cache: dict[str, np.ndarray] = {}
-    for e in events:
+    for e in events + extra_cues(events):
         name = e.get("name") if e["kind"] == "sfx" else None
         if not name:
             continue
@@ -227,8 +296,11 @@ def mix_audio(events: list[dict], dur: float, dst: Path) -> None:
         i = int(e["t"] * SR)
         seg = fx[i:i + len(s)]
         seg += s[: len(seg)]
-    mix = music + fx
-    mix /= max(1.0, np.max(np.abs(mix)) / 0.89)
+    voice = load_voice(dur)
+    music = music / max(1e-9, np.max(np.abs(music))) * 0.32
+    g = duck(voice)
+    mix = music * g + fx * (0.6 + 0.4 * g) + voice
+    mix /= max(1.0, np.max(np.abs(mix)) / 0.95)
     pcm = (np.stack([mix, mix], axis=1) * 32767).astype("<i2")
     with wave.open(str(dst), "wb") as wf:
         wf.setnchannels(2)
@@ -265,11 +337,15 @@ def main() -> None:
     timeline = json.loads((OUT / "timeline.json").read_text(encoding="utf-8"))
     events = timeline["events"]
     cfr = OUT / "cfr.mp4"
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(OUT / "raw.webm"), "-r", str(FPS), "-c:v", "libx264",
-                    "-crf", "14", "-preset", "veryfast", "-an", str(cfr)], check=True)
+    if "--audio-only" not in sys.argv:
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(OUT / "raw.webm"), "-r", str(FPS), "-c:v",
+                        "libx264", "-crf", "14", "-preset", "veryfast", "-an", str(cfr)], check=True)
     spans, cuts = fast_spans(events), cut_spans(events)
-    print(f"zooming ({len(spans)} time-lapse spans, {len(cuts)} cross-fades)...")
-    dur = render_video(cfr, OUT / "zoomed.mp4", events, spans, cuts)
+    if "--audio-only" in sys.argv and (OUT / "zoomed.mp4").exists():  # reuse the rendered picture
+        dur = int(cv2.VideoCapture(str(OUT / "zoomed.mp4")).get(cv2.CAP_PROP_FRAME_COUNT)) / FPS
+    else:
+        print(f"zooming ({len(spans)} time-lapse spans, {len(cuts)} cross-fades)...")
+        dur = render_video(cfr, OUT / "zoomed.mp4", events, spans, cuts)
     events = [e | {"t": round(retime(e["t"], spans, cuts), 3)} for e in events]  # cues follow the cut
     print("mixing audio...")
     mix_audio(events, dur, OUT / "audio.wav")
@@ -281,7 +357,7 @@ def main() -> None:
     vf = caption_filter(events) + badge + f",fade=t=in:st=0:d=0.6,fade=t=out:st={dur - 1.2:.2f}:d=1.2"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(OUT / "zoomed.mp4"), "-i", str(OUT / "audio.wav"),
                     "-vf", vf, "-c:v", "libx264", "-crf", "19", "-preset", "medium", "-pix_fmt", "yuv420p",
-                    "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
+                    "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", "-movflags", "+faststart",
                     str(OUT / "errand-demo.mp4")], check=True)
     print(f"wrote {OUT / 'errand-demo.mp4'} ({dur:.1f}s)")
 
