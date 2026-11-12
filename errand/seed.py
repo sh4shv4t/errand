@@ -12,7 +12,7 @@ from pathlib import Path
 
 import httpx
 
-from . import config, db, ledger, service, taskbank  # noqa: F401  (taskbank re-exported for examples)
+from . import config, db, integrity, ledger, service, taskbank  # noqa: F401  (taskbank re-exported for examples)
 from .config import to_micros
 from .db import PAYPAL_ID
 
@@ -149,6 +149,39 @@ def warm_up(conn, n: int, rng_seed: int = 7) -> int:
             except service.ErrandError:
                 break
             done += e["status"] == "completed"
+        _warm_extras(conn, rng)
     finally:
         config.configure(sim_latency_scale=scale)
     return done
+
+
+# custom questions the simulated Runners cannot answer: they are refunded, which is what judges should see
+OFF_BANK = ["How tall is Mount Everest in metres?", "What is the population of Lisbon?"]
+
+
+def _warm_extras(conn, rng) -> None:
+    """Fill the rest of a fresh demo: pinned errands, refunds, audits and real PayPal activity. Each step is
+    best effort, so a PayPal hiccup never stops the server from starting."""
+    alan = lambda: service.get_account(conn, "snd_alan")  # noqa: E731  (balance changes between steps)
+    steps = []
+    for runner, lane in (("run_ada", CODE), ("run_mercer", MATH), ("run_grace", CODE), ("run_kepler", MATH)):
+        item = rng.choice(taskbank.items(lane, "demo"))
+        steps.append(lambda r=runner, l=lane, i=item: service.send_errand(
+            conn, alan(), l, taskbank.payload_for(l, i), runner=r, mystery_async=False))
+    for q in OFF_BANK:
+        steps.append(lambda q=q: service.send_errand(conn, alan(), MATH, {"problem": q}, mystery_async=False))
+    for lane in (MATH, CODE, MATH):
+        steps.append(lambda l=lane: integrity.run_mystery(conn, l, rng=rng))
+    def payouts():  # real PayPal Payouts in sandbox mode, mock otherwise; the two top earners cash out a cent
+        rows = conn.execute("SELECT id FROM accounts WHERE kind='runner'").fetchall()
+        top = sorted((ledger.balance(conn, r["id"], "earnings"), r["id"]) for r in rows)[-2:]
+        for micros, rid in top:
+            if micros >= 10_000:
+                service.withdraw(conn, service.get_account(conn, rid), 0.01)
+    steps.append(payouts)
+    steps.append(lambda: service.start_topup(conn, alan(), 5.0))  # an order awaiting a human's approval
+    for step in steps:
+        try:
+            step()
+        except Exception:  # noqa: BLE001
+            pass
