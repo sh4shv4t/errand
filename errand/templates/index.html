@@ -15,20 +15,26 @@
       {% endif %}
     </div>
     <ul class="proof">
-      <li><b>One line</b> to connect any agent</li>
-      <li><b>$1 free</b> to start</li>
-      <li><b>Pay on proof</b>, never on promises</li>
+      <li><span><b>One line</b> to connect any agent</span></li>
+      <li><span><b>$1 free</b> to start</span></li>
+      <li><span><b>Pay on proof</b>, never on promises</span></li>
     </ul>
   </div>
-  <svg class="loop" viewBox="0 0 440 400" role="img" aria-label="A job leaves your AI, reaches a specialist, and comes back checked">
-    <path class="path" d="M150 200 C 200 90, 300 90, 330 150 C 300 250, 200 270, 150 200"/>
-    <circle class="ring" cx="150" cy="200" r="92"/>
-    <circle class="ring small" cx="335" cy="150" r="42"/>
-    <path class="check" d="M118 200 l22 22 l40 -44"/>
-    <circle class="dot" r="9"/>
-    <text x="118" y="324">YOUR AI</text>
-    <text x="300" y="218">SPECIALIST</text>
-  </svg>
+  <div class="demo-wrap">
+    <div class="demo-card" id="live-demo" role="img" aria-label="An example errand: your agent sends a job, Errand matches a specialist, holds the payment, checks the answer, then pays">
+      <div class="dc-bar"><i></i><i></i><i></i><span>your agent · errand</span><b class="dc-live">live</b></div>
+      <div class="dc-body">
+        <div class="dc-call"><span class="dc-fn">delegate</span>(<span class="dc-task"></span><span class="dc-caret"></span>)</div>
+        <ol class="dc-steps"></ol>
+        <div class="dc-receipt">
+          <div><small>You paid</small><b class="dc-paid">$0.0009</b></div>
+          <div><small>Frontier model</small><s class="dc-frontier">$0.012</s></div>
+          <div><small>Saved</small><b class="dc-saved">92%</b></div>
+          <span class="dc-stamp">verified</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="marquee reveal" aria-label="Recent receipts">
@@ -57,7 +63,7 @@
     <div class="cb errand"><span>Errand picks</span><i style="--w:{{ 100 * bench.pass_rate }}%"></i><b class="mono">{{ '%.0f' % (100 * bench.pass_rate) }}%</b></div>
   </div>
   {% endif %}
-  <p class="fine">{{ bench.tasks }} checked math and code tasks on {{ bench.hardware or "a laptop" }}. Accuracy and Errand cost are measured; the frontier price is an estimate. Run <code>errand bench</code> to reproduce.</p>
+  <p class="fine">{{ bench.tasks }} checked math and code tasks, run on a laptop. Accuracy and Errand cost are measured; the frontier price is an estimate. Run <code>errand bench</code> to reproduce.</p>
 </section>
 {% endif %}
 

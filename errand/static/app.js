@@ -14,7 +14,19 @@
     return j;
   }
   const usd = (v, d = 4) => (v == null ? "" : "$" + Number(v).toFixed(d));
+  // display money: enough digits to be honest, few enough to read ($0.0009, $0.012, $1.89)
+  const money = (v) => (v == null ? "" : "$" + Number(v).toFixed(Math.abs(v) >= 1 ? 2 : Math.abs(v) >= 0.01 ? 3 : 4));
   const pct = (v) => (v == null ? "" : (100 * v).toFixed(0) + "%");
+  const ago = (t) => {
+    if (!t) return "";
+    const s = Math.max(0, Date.now() / 1000 - t);
+    return s < 60 ? "just now" : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : new Date(t * 1000).toLocaleDateString();
+  };
+  const taskText = (e) => {
+    const p = e.payload || {};
+    return p.problem || (p.function_name ? `Write ${p.function_name}(): ${p.spec || ""}` : p.spec || e.lane);
+  };
+  const resultOf = (e) => (e.status === "running" ? "running" : e.status !== "completed" ? "refunded" : e.verdict === "passed" ? "verified" : "delivered");
   const when = (t) => (t ? new Date(t * 1000).toLocaleString() : "");
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -48,7 +60,33 @@
     try { await fn(); } catch (e) { toast(e.message, "bad"); } finally { btn.disabled = false; btn.textContent = label; }
   }
 
-  // copy buttons
+  // code blocks: light syntax colour and a copy icon on every <pre>
+  const TOK = /("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|(?:^|\s)#[^\n]*|\b(?:from|import|def|return|assert|curl|claude|errand|npx|pip)\b|(?:^|\s)--?[a-zA-Z][\w-]*)/gm;
+  function highlight(pre) {
+    pre.innerHTML = pre.textContent.split(TOK).map((t, i) => {
+      if (i % 2 === 0 || !t) return esc(t);
+      const lead = t.match(/^\s*/)[0], body = t.slice(lead.length);
+      const cls = body[0] === '"' || body[0] === "'" ? "s" : body[0] === "#" ? "c" : body[0] === "-" ? "f" : "k";
+      return esc(lead) + `<span class="${cls}">${esc(body)}</span>`;
+    }).join("");
+  }
+  const COPY_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+  const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  function decorate(pre) {
+    if (pre.closest(".codebox")) return;
+    highlight(pre);
+    const box = document.createElement("div");
+    box.className = "codebox";
+    pre.replaceWith(box);
+    box.appendChild(pre);
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "cp"; b.title = "Copy"; b.setAttribute("aria-label", "Copy"); b.innerHTML = COPY_SVG;
+    b.addEventListener("click", () => navigator.clipboard.writeText(pre.textContent.trim()).then(() => {
+      b.innerHTML = CHECK_SVG; setTimeout(() => (b.innerHTML = COPY_SVG), 1400);
+    }));
+    box.appendChild(b);
+  }
+  $$("main pre").forEach(decorate);
   $$("[data-copy]").forEach((b) => b.addEventListener("click", () => {
     navigator.clipboard.writeText($(b.dataset.copy).textContent.trim()).then(() => toast("Copied", "ok"));
   }));
@@ -67,6 +105,8 @@
   addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; onScroll(); }); } }, { passive: true });
   onScroll();
 
+  const menu = $(".menu-btn");
+  if (menu) menu.addEventListener("click", () => menu.setAttribute("aria-expanded", String(nav.classList.toggle("open"))));
   const links = $(".nav .links"), pill = $(".nav .links .pill");
   if (links) $$("a", links).forEach((a) => { if (location.pathname === a.getAttribute("href")) a.classList.add("active"); });
   if (links && pill && matchMedia("(hover: hover)").matches) {
@@ -120,8 +160,72 @@
     if (tabs.length) await load(tabs[0].dataset.lane);
   }
 
+  // ---------- landing: hero card plays a few real-looking errands on a loop ----------
+  const DEMO = [
+    { task: "What is 17 × 23?", check: "391", steps: [
+      ["Finding the best specialist", "Matched <b>Duke</b>", "math · $0.0009"],
+      ["Holding payment in escrow", "Payment held", "$0.0009", "hold"],
+      ["Checking the answer", "<b>391</b> matches the check", "verified"],
+      ["Releasing payment", "Paid Duke", "via PayPal wallet"]],
+      paid: "$0.0009", frontier: "$0.012", saved: "92%" },
+    { task: "Write is_palindrome(s), ignore case", check: "3 asserts", steps: [
+      ["Finding the best specialist", "Matched <b>Ada</b>", "code · $0.0016"],
+      ["Holding payment in escrow", "Payment held", "$0.0016", "hold"],
+      ["Running your tests", "<b>3 of 3</b> tests passed", "verified"],
+      ["Releasing payment", "Paid Ada", "via PayPal wallet"]],
+      paid: "$0.0016", frontier: "$0.020", saved: "92%" },
+    { task: "A train goes 216 km in 12 h. Speed in km/h?", check: "18", steps: [
+      ["Finding the best specialist", "Matched <b>Atlas</b>", "math · $0.0046"],
+      ["Checking the answer", "Atlas said <b>16</b>, wrong", "not charged", "bad"],
+      ["Trying the next specialist", "Matched <b>Duke</b>", "math · $0.0009"],
+      ["Checking the answer", "<b>18</b> matches the check", "verified"],
+      ["Releasing payment", "Paid Duke only", "via PayPal wallet"]],
+      paid: "$0.0009", frontier: "$0.012", saved: "92%" },
+  ];
+  function initDemo() {
+    const card = $("#live-demo");
+    if (!card) return;
+    const taskEl = $(".dc-task", card), list = $(".dc-steps", card), rc = $(".dc-receipt", card);
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const call = (d, n) => {
+      const rest = n > d.task.length ? `, check=<q>${esc(d.check)}</q>` : "";
+      return `<q>${esc(d.task.slice(0, n))}</q>${rest}`;
+    };
+    const fill = (d) => {
+      $(".dc-paid", card).textContent = d.paid; $(".dc-frontier", card).textContent = d.frontier; $(".dc-saved", card).textContent = d.saved;
+    };
+    const finalState = (d) => {
+      taskEl.innerHTML = call(d, 999);
+      list.innerHTML = d.steps.map(([, done, meta, kind]) => `<li class="${kind || "ok"}"><span class="dc-ic"></span><span>${done}</span><small>${meta}</small></li>`).join("");
+      fill(d); rc.classList.add("show");
+    };
+    if (reduced) return finalState(DEMO[0]);
+    (async () => {
+      for (let i = 0; ; i = (i + 1) % DEMO.length) {
+        const d = DEMO[i];
+        list.innerHTML = ""; rc.classList.remove("show"); fill(d);
+        for (let n = 0; n <= d.task.length; n++) { taskEl.innerHTML = call(d, n); await sleep(28); }
+        await sleep(350); taskEl.innerHTML = call(d, 999); await sleep(500);
+        for (const [pending, done, meta, kind] of d.steps) {
+          const li = document.createElement("li");
+          li.className = "run";
+          li.innerHTML = `<span class="dc-ic"></span><span>${pending}</span><small></small>`;
+          list.appendChild(li);
+          await sleep(kind === "hold" ? 650 : 1000);
+          li.className = kind || "ok";
+          li.innerHTML = `<span class="dc-ic"></span><span>${done}</span><small>${meta}</small>`;
+          await sleep(300);
+        }
+        rc.classList.add("show");
+        await sleep(3600);
+        while (document.hidden) await sleep(500);
+      }
+    })();
+  }
+
   // ---------- landing ----------
   async function initIndex() {
+    initDemo();
     // the How-it-works line draws itself as you scroll, lighting each step it reaches
     const howto = $(".howto"), trail = $(".howto .trail path"), steps = $$(".howto .step");
     if (howto && trail) scrollFx.push(() => {
@@ -145,10 +249,10 @@
     const track = $("#receipts-track");
     if (track && st.recent.length) {
       const html = st.recent.map((r) => `<div class="mini-receipt">
-        <div class="r"><span>${r.lane.startsWith("math") ? "math" : "code"}</span><span>${r.verdict === "passed" ? "checked ✓" : esc(r.verdict)}</span></div>
-        <div class="a">${esc(r.answer)}</div>
-        <div class="r"><span>${esc(r.runner)}</span><span>${usd(r.total_usd, 5)}</span></div>
-        <div class="r"><span>frontier est.</span><span>${usd(r.baseline_usd, 3)}</span></div></div>`).join("");
+        <div class="r"><span class="lane">${r.lane.startsWith("math") ? "Math" : "Code"}</span><span class="ok">${r.verdict === "passed" ? "✓ checked" : esc(r.verdict)}</span></div>
+        <div class="q">${esc(r.task || "")}</div>
+        <div class="a">→ ${esc(r.lane.startsWith("math") ? r.answer : "tests passed")}</div>
+        <div class="r"><span>${esc(r.runner)} · <b>${money(r.total_usd)}</b></span><span><s>${money(r.baseline_usd)}</s></span></div></div>`).join("");
       track.innerHTML = html + html;
       if (!reduced) track.animate([{ transform: "translateX(0)" }, { transform: "translateX(-50%)" }],
         { duration: 4000 * st.recent.length, iterations: Infinity });
@@ -164,9 +268,9 @@
       const me = await api("/v1/me");
       const b = me.balances, a = me.activity;
       $("#k-wallet").textContent = usd(b.wallet || 0, 2);
-      $("#k-spent").textContent = `${usd(a.spend_30d_usd, 4)} spent`;
+      $("#k-spent").textContent = `${money(a.spend_30d_usd)} spent`;
       $("#k-errands").textContent = a.errands_30d;
-      countTo($("#k-saved"), savedShown, a.saved_30d_usd, { prefix: "$", decimals: 4 });
+      countTo($("#k-saved"), savedShown, a.saved_30d_usd, { prefix: "$", decimals: a.saved_30d_usd >= 1 ? 2 : 3 });
       savedShown = a.saved_30d_usd;
       $("#k-tier").textContent = me.tier.name;
       $("#k-tier-next").textContent = me.tier.next ? `${usd(me.tier.next.spend_needed_usd, 2)} more to ${me.tier.next.name}` : "top tier";
@@ -177,21 +281,22 @@
       $("#consent").value = String(acc.consent_level);
       const errands = await api("/v1/errands");
       grid("#errands-grid", [
-        { field: "created_at", headerName: "When", valueFormatter: (p) => when(p.value), minWidth: 160 },
-        { field: "lane", minWidth: 140, cellClass: "mono" },
-        { field: "status", cellRenderer: (p) => statusBadge(p.value), maxWidth: 130 },
-        { field: "verdict", cellRenderer: (p) => (p.value ? statusBadge(p.value) : ""), maxWidth: 130 },
-        { field: "answer", minWidth: 90 },
-        { headerName: "Runner", valueGetter: (p) => p.data.runner && p.data.runner.name },
-        { field: "total_usd", headerName: "Cost", valueFormatter: (p) => usd(p.value), cellClass: "mono" },
-        { field: "saved_usd", headerName: "Saved", valueFormatter: (p) => usd(p.value), cellClass: "mono" },
-        { field: "policy", maxWidth: 110 },
-        { headerName: "Feedback", minWidth: 130, cellRenderer: (p) => {
+        { headerName: "Task", flex: 3, minWidth: 260, valueGetter: (p) => taskText(p.data), cellClass: "cell-task",
+          cellRenderer: (p) => `<div class="t">${esc(p.value)}</div><div class="l">${p.data.lane.startsWith("math") ? "Math" : "Code"}${p.data.kind === "bounty" ? " · PayPal bounty" : ""}</div>` },
+        { field: "answer", headerName: "Answer", flex: 1, minWidth: 90, cellClass: "mono",
+          valueGetter: (p) => (p.data.lane.startsWith("code") && p.data.status === "completed" ? "tests passed" : p.data.answer) },
+        { headerName: "Specialist", flex: 1, minWidth: 100, valueGetter: (p) => p.data.runner && p.data.runner.name },
+        { headerName: "Result", flex: 1, minWidth: 110, valueGetter: (p) => resultOf(p.data),
+          cellRenderer: (p) => badge(p.value, { verified: "ok", delivered: "plain", refunded: "bad", running: "warn" }[p.value]) },
+        { field: "total_usd", headerName: "Cost", flex: 1, minWidth: 90, valueFormatter: (p) => money(p.value), cellClass: "mono" },
+        { field: "saved_usd", headerName: "Saved", flex: 1, minWidth: 90, valueFormatter: (p) => (p.value ? money(p.value) : ""), cellClass: "mono saved" },
+        { field: "created_at", headerName: "When", flex: 1, minWidth: 90, valueFormatter: (p) => ago(p.value), cellClass: "muted" },
+        { headerName: "", flex: 1, minWidth: 120, sortable: false, filter: false, cellRenderer: (p) => {
           if (p.data.status !== "completed") return "";
-          if (p.data.feedback) return p.data.feedback > 0 ? "accepted" : "disputed";
+          if (p.data.feedback) return `<span class="muted small">${p.data.feedback > 0 ? "accepted" : "disputed"}</span>`;
           return `<a href="#" data-fb="1" data-id="${p.data.id}">accept</a> · <a href="#" data-fb="0" data-id="${p.data.id}">dispute</a>`;
         } },
-      ], errands);
+      ], errands, { rowHeight: 58, defaultColDef: { sortable: true, filter: false, resizable: true } });
       grid("#ops-grid", opsCols, await api("/v1/paypal/ops"));
     }
 

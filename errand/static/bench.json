@@ -1,6 +1,6 @@
 {
   "date": "2026-11-10",
-  "hardware": "RTX 3050 laptop GPU, 4 GB",
+  "hardware": "",
   "model": "phi3:mini + qwen2.5-coder:1.5b",
   "tasks": 44,
   "verified": 39,

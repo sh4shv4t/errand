@@ -290,16 +290,24 @@ def api_delegate(body: DelegateIn, acct=Depends(current_account), conn=Depends(g
         raise service.ErrandError(str(e)) from None
 
 
+def _task_text(payload: str) -> str:
+    """One-line description of an errand for public feeds (the check and tests stay private)."""
+    p = json.loads(payload)
+    if "problem" in p:
+        return p["problem"]
+    return f"Write {p.get('function_name', 'a function')}(): {p.get('spec', '')}".strip()
+
+
 @app.get("/v1/stats")
 def api_stats(conn=Depends(get_conn)):
     """Public headline numbers for the landing page."""
     done = conn.execute("SELECT COUNT(*), COALESCE(SUM(verdict='passed'),0), COALESCE(SUM(MAX(0, baseline-(price+fee-dividend))),0) "
                         "FROM errands WHERE status='completed' AND kind IN ('live','bounty')").fetchone()
     recent = conn.execute(
-        "SELECT e.lane, e.answer, e.verdict, e.price+e.fee-e.dividend AS total, e.baseline, e.latency_ms, a.name "
+        "SELECT e.lane, e.payload, e.answer, e.verdict, e.price+e.fee-e.dividend AS total, e.baseline, e.latency_ms, a.name "
         "FROM errands e JOIN accounts a ON a.id=e.runner_id WHERE e.status='completed' AND e.kind IN ('live','bounty') "
         "ORDER BY e.completed_at DESC LIMIT 12").fetchall()
-    return {"recent": [{"lane": r["lane"], "runner": r["name"], "verdict": r["verdict"], "latency_ms": r["latency_ms"],
+    return {"recent": [{"lane": r["lane"], "task": _task_text(r["payload"]), "runner": r["name"], "verdict": r["verdict"], "latency_ms": r["latency_ms"],
                         "answer": r["answer"] if r["lane"] == "math.final-answer" else "tests passed",
                         "total_usd": r["total"] / 1e6, "baseline_usd": r["baseline"] / 1e6} for r in recent],
             "errands": done[0], "verified": done[1], "saved_usd": done[2] / 1e6,

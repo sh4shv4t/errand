@@ -44,6 +44,8 @@ def main() -> None:
             ctx = b.new_context(viewport={"width": W, "height": H}, color_scheme="light")
             page = ctx.new_page()
             page.goto(record.BASE + "/")
+            page.wait_for_selector(".dc-receipt.show", timeout=30000)  # hero card has played one full errand
+            page.wait_for_timeout(700)
             snap(page, "landing")
             for sel, name, off in (("#results", "results", 20), ("#ranks", "rankings", 230), (".roadmap", "roadmap", 200)):
                 page.evaluate("document.querySelectorAll('.reveal,.mark').forEach(e => e.classList.add('in'))")
