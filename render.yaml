@@ -14,6 +14,14 @@ services:
       - key: ERRAND_SIM_LATENCY_SCALE
         value: "0.6"
       # ERRAND_BASE_URL is optional here: Render's RENDER_EXTERNAL_URL is picked up automatically
+      # optional real Runners from any OpenAI-compatible API, so visitors can send their own jobs.
+      # Groq's free tier works: base URL https://api.groq.com/openai/v1, models llama-3.1-8b-instant,llama-3.3-70b-versatile
+      - key: ERRAND_LLM_BASE_URL
+        sync: false
+      - key: ERRAND_LLM_API_KEY
+        sync: false
+      - key: ERRAND_LLM_MODELS
+        sync: false
       - key: PAYPAL_CLIENT_ID
         sync: false
       - key: PAYPAL_CLIENT_SECRET

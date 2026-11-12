@@ -104,6 +104,24 @@ def _safe_eval(expr: str) -> float:
     return ev(ast.parse(expr.replace("^", "**"), mode="eval"))
 
 
+_LEAD_RE = re.compile(r"^\s*(what\s+is|what's|compute|calculate|evaluate|solve)\s*:?\s*", re.I)
+
+
+def pure_expression(problem: str) -> str:
+    """The arithmetic expression a problem consists of, or "" if it is anything more than that.
+    Simulated runners only evaluate whole expressions; picking numbers out of a word problem gives wrong answers."""
+    text = _LEAD_RE.sub("", problem or "").strip().rstrip("?=. ").strip()
+    text = text.replace("×", "*").replace("÷", "/")
+    return text if text and _EXPR_RE.fullmatch(text) and re.search(r"\d", text) else ""
+
+
+def simulated_can_answer(lane_id: str, payload: dict) -> bool:
+    """Whether a simulated runner has a real shot at this errand (built-in task bank, or plain arithmetic)."""
+    if taskbank.lookup(lane_id, payload):
+        return True
+    return lane_id == "math.final-answer" and bool(pure_expression(payload.get("problem", "")))
+
+
 def _simulated(cfg: dict, lane_id: str, payload: dict, call_index: int) -> str:
     rng = random.Random()
     lo, hi = cfg.get("latency_ms", [150, 450])
@@ -123,7 +141,7 @@ def _simulated(cfg: dict, lane_id: str, payload: dict, call_index: int) -> str:
         if item:
             ans = item["answer"] if correct else _wrong_number(item["answer"], rng)
             return f"Working through it step by step.\nANSWER: {ans}\nCONFIDENCE: {conf:.2f}"
-        expr = max(_EXPR_RE.findall(payload.get("problem", "")), key=len, default="").strip()
+        expr = pure_expression(payload.get("problem", ""))
         try:
             value = _safe_eval(expr)
             value = int(value) if float(value).is_integer() else round(value, 6)

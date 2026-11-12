@@ -76,6 +76,21 @@ def ollama_models(base: str = "http://localhost:11434") -> list[str]:
         return []
 
 
+def hosted_llm_specs() -> list[dict]:
+    """Real Runners for a hosted demo, from any OpenAI-compatible API (Groq, OpenRouter, Together...).
+    ERRAND_LLM_BASE_URL, ERRAND_LLM_API_KEY and ERRAND_LLM_MODELS (comma separated). Off unless all three are set."""
+    base, models = os.environ.get("ERRAND_LLM_BASE_URL", "").strip(), os.environ.get("ERRAND_LLM_MODELS", "")
+    if not base or not os.environ.get("ERRAND_LLM_API_KEY"):
+        return []
+    out = []
+    for m in [m.strip() for m in models.split(",") if m.strip()]:
+        slug = "".join(ch if ch.isalnum() else "-" for ch in m.split("/")[-1]).strip("-")
+        out.append(dict(id=f"run_llm_{slug}"[:40], name=m.split("/")[-1], email=None, model=m,
+                        lanes={MATH: 0.0004, CODE: 0.0006}, kind="openai",
+                        cfg={"base_url": base, "model": m, "api_key_env": "ERRAND_LLM_API_KEY", "timeout": 60}))
+    return out
+
+
 def seed(conn, with_ollama: bool = True) -> dict:
     db.init(conn)
     if is_seeded(conn):
@@ -100,6 +115,7 @@ def seed(conn, with_ollama: bool = True) -> dict:
             specs.append(dict(id=f"run_ollama_{slug}"[:40], name=f"Ollama {m}", email=None, model=m,
                               lanes={MATH: 0.0002, CODE: 0.0003}, kind="openai",
                               cfg={"base_url": "http://localhost:11434/v1", "model": m, "timeout": 180}))
+    specs += hosted_llm_specs()
     for spec in specs:
         acct, key = service.create_account(conn, "runner", spec["name"], spec["email"], account_id=spec["id"])
         _seed_credit(conn, acct["id"], "bond", 2.0)

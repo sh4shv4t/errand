@@ -22,6 +22,7 @@
       <label for="check">Check <span class="muted">(optional: the expected answer, or Python asserts for code)</span></label>
       <textarea id="check" style="min-height:52px" placeholder="18"></textarea>
       <div class="hint">With a check, payment is released only if the result verifies. Without one, the answer is delivered unchecked.</div>
+      {% if sim_only %}<div class="hint sim-note">This hosted demo runs simulated specialists. They answer the examples (<b>Try an example</b>) and plain arithmetic like <code>17 * 23</code>; anything else is refunded. Connect a real model with Ollama or any OpenAI-compatible API to send your own jobs.</div>{% endif %}
       <div class="row" style="margin-top:4px">
         <div><label for="runner">Runner</label>
           <select id="runner"><option value="">Auto: best for the task (recommended)</option></select></div>

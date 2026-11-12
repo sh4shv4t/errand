@@ -336,3 +336,33 @@ def test_platform_fee_is_split_evenly_between_sender_and_runner(conn):
     runner_got = ledger.balance(conn, runner, "earnings")
     assert sender_paid - 2000 == 2000 - runner_got == 100  # 5% each side of a $0.002 price
     assert ledger.balance(conn, PLATFORM_ID, "revenue") == 200 and e["total_usd"] == pytest.approx(0.0021)
+
+
+def test_simulated_runner_never_guesses_numbers_out_of_a_word_problem(conn):
+    from errand import runners
+    assert runners.pure_expression("What is 17 * 23?") == "17 * 23"
+    assert runners.pure_expression("Area of a right triangle with base 10 and height 20") == ""
+    make_runner(conn, "Duke", {MATH: 0.001}, {"accuracy": {MATH: 1.0}, "latency_ms": [0, 0]})
+    s = make_sender(conn)
+    e = service.send_errand(conn, s, MATH, {"problem": "Area of a right triangle with base 10 and height 20"},
+                            mystery_async=False)
+    assert e["answer"] in (None, "unknown") and e["total_usd"] == 0
+
+
+def test_tasks_simulated_runners_cannot_do_prefer_real_models():
+    sim = dispatch.Candidate({"id": "a", "kind": "simulated"}, 1, None)
+    real = dispatch.Candidate({"id": "b", "kind": "openai"}, 2, None)
+    assert service._suited([sim, real], MATH, {"problem": "How tall is a giraffe in metres?"}) == [real]
+    assert service._suited([sim, real], MATH, {"problem": "What is 2 + 2?"}) == [sim, real]
+    assert service._suited([sim], MATH, {"problem": "How tall is a giraffe?"}) == [sim]
+
+
+def test_hosted_llm_runners_come_from_env(monkeypatch):
+    from errand import seed
+    assert seed.hosted_llm_specs() == []
+    monkeypatch.setenv("ERRAND_LLM_BASE_URL", "https://api.example.com/v1")
+    monkeypatch.setenv("ERRAND_LLM_API_KEY", "test")
+    monkeypatch.setenv("ERRAND_LLM_MODELS", "llama-3.1-8b-instant, qwen/qwen3-32b")
+    specs = seed.hosted_llm_specs()
+    assert [s["name"] for s in specs] == ["llama-3.1-8b-instant", "qwen3-32b"]
+    assert all(s["kind"] == "openai" and s["cfg"]["api_key_env"] == "ERRAND_LLM_API_KEY" for s in specs)

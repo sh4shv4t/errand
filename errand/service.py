@@ -11,7 +11,7 @@ import re
 import secrets
 import sqlite3
 
-from . import config, db, dispatch, integrity, lanes, ledger, ratings, tiers
+from . import config, db, dispatch, integrity, lanes, ledger, ratings, runners, tiers
 from .config import to_micros, to_usd
 from .db import PAYPAL_ID, PLATFORM_ID, new_id, now
 from .paypal import PayPalError
@@ -220,6 +220,15 @@ def _spent_last_24h(conn, sender_id: str) -> int:
     return int(r[0])
 
 
+def _suited(cands: list, lane_id: str, payload: dict) -> list:
+    """Simulated demo Runners only know the task bank and plain arithmetic. For anything else, prefer real
+    models when any are registered, so a custom task is not burned on Runners that cannot do it."""
+    if runners.simulated_can_answer(lane_id, payload):
+        return cands
+    real = [c for c in cands if c.runner.get("kind") != "simulated"]
+    return real or cands
+
+
 def send_errand(conn: sqlite3.Connection, sender: dict, lane_id: str, payload: dict,
                 budget_usd: float | None = None, preset: str | None = None, mode: str = "sample",
                 mystery_async: bool = True, runner: str | None = None, fallback: bool = True) -> dict:
@@ -270,6 +279,8 @@ def send_errand(conn: sqlite3.Connection, sender: dict, lane_id: str, payload: d
             elif not fallback:
                 last_detail = "the Runner you picked is not available for this lane and budget"
                 break
+        if not (pinned and cands and cands[0].runner["id"] == pinned and len(cands) == 1):
+            cands = _suited(cands, lane_id, payload)
         if not cands:
             break
         cand, policy = dispatch.choose(cands, preset, mode)
@@ -535,7 +546,7 @@ def _run_bounty(conn, op: dict) -> dict:
     tried: set[str] = set()
     detail = "no eligible runner"
     for attempt in range(1, MAX_ATTEMPTS + 1):
-        cands = dispatch.candidates(conn, lane_id, amount - fee, exclude=tried)
+        cands = _suited(dispatch.candidates(conn, lane_id, amount - fee, exclude=tried), lane_id, payload)
         if not cands:
             break
         cand, policy = dispatch.choose(cands, "best", "top")

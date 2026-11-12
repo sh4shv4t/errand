@@ -557,9 +557,11 @@ def signup(request: Request, kind: str = Form(...), name: str = Form(...), email
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
-def dashboard(request: Request, acct=Depends(optional_account)):
+def dashboard(request: Request, acct=Depends(optional_account), conn=Depends(get_conn)):
     if acct is None:
         return RedirectResponse("/login", status_code=303)
     template = {"sender": "sender.html", "runner": "runner.html", "platform": "platform.html"}[acct["kind"]]
+    sim_only = config.get().demo and not conn.execute(
+        "SELECT 1 FROM runners WHERE status='active' AND kind!='simulated' LIMIT 1").fetchone()
     return page(request, template, acct, lanes=list(lanes.LANES.values()), base_url=config.get().base_url,
-                api_key=request.cookies.get(COOKIE) or "erk_YOUR_KEY")
+                api_key=request.cookies.get(COOKIE) or "erk_YOUR_KEY", sim_only=sim_only)
