@@ -217,11 +217,11 @@ button:disabled { opacity: 0.55; cursor: progress; }
 /* ---------- AG Grid ---------- */
 .gridbox { width: 100%; }
 .ag-cell .badge { vertical-align: middle; }
-.ag-theme-quartz {
+.gridbox.ag-theme-quartz {
   --ag-font-family: var(--sans); --ag-font-size: 13px; --ag-active-color: var(--forest);
   --ag-background-color: var(--card); --ag-foreground-color: var(--ink); --ag-header-background-color: var(--card);
   --ag-header-foreground-color: var(--moss); --ag-border-color: var(--line); --ag-row-border-color: var(--line-soft);
-  --ag-row-hover-color: var(--paper); --ag-odd-row-background-color: var(--card); --ag-wrapper-border-radius: 10px;
+  --ag-row-hover-color: var(--forest-wash); --ag-odd-row-background-color: var(--card); --ag-wrapper-border-radius: 10px;
   --ag-header-font-weight: 500; --ag-row-height: 40px; --ag-header-height: 40px; --ag-selected-row-background-color: var(--forest-wash);
 }
 .ag-theme-quartz .ag-header-cell-text { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
