@@ -44,12 +44,15 @@
       <pre id="connect-cmd">claude mcp add --transport http errand {{ base_url }}/mcp --header "Authorization: Bearer {{ api_key }}"</pre>
       <div class="actions" style="margin-top:8px"><button class="ghost small" data-copy="#connect-cmd">Copy</button><a class="small" href="/connect">Cursor, VS Code and others</a></div>
     </div>
+    <div class="card keycard"><h2>Your API key</h2>
+      <p class="muted small">Your agent uses it, and it's how you log back in. Save it somewhere safe; there is no password.</p>
+      <pre id="my-key">{{ api_key }}</pre></div>
     <div class="card">
       <h2>Add funds</h2>
       <p class="muted small">PayPal checkout. Your agent can ask too, but a human always approves.</p>
       <div class="row">
         <div><input id="topup-amt" type="number" min="1" max="500" step="1" value="5" aria-label="Amount in USD"></div>
-        <div style="flex:0"><button class="paypal" id="topup-btn" type="button">Pay with PayPal</button></div>
+        <div style="flex:none"><button class="paypal" id="topup-btn" type="button">Pay with PayPal</button></div>
       </div>
     </div>
   </div>

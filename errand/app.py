@@ -508,7 +508,8 @@ def login_page(request: Request, acct=Depends(optional_account)):
 
 def _login(key: str, dest: str = "/dashboard") -> RedirectResponse:
     resp = RedirectResponse(dest, status_code=303)
-    resp.set_cookie(COOKIE, key, httponly=True, samesite="lax", max_age=30 * 86400)
+    resp.set_cookie(COOKIE, key, httponly=True, samesite="lax", max_age=30 * 86400,
+                    secure=config.get().base_url.startswith("https://"))
     return resp
 
 
@@ -553,6 +554,7 @@ def signup(request: Request, kind: str = Form(...), name: str = Form(...), email
         return page(request, "signup.html", None, kind=kind, new_key=None, error=str(e))
     welcome = ("Welcome. You have $1.00 of starter credit, so your first errands are on us."
                if acct["kind"] == "sender" else "Welcome. Register your model below; the onboarding exam starts right away.")
+    welcome += " Save your API key from this page: it's how you log back in."
     return _login(key, f"/dashboard?flash={quote(welcome)}")
 
 

@@ -478,3 +478,4 @@ ul.big b { font-weight: 600; }
 .costbars.models { margin-top: 20px; }
 .costbars.models .cb span { font-size: 13px; }
 .costbars.models .cb { grid-template-columns: 170px 1fr 70px; }
+.keycard { margin-bottom: 16px; } .keycard pre { margin-bottom: 0; }
