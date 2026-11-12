@@ -20,6 +20,7 @@ OUT = Path(__file__).resolve().parent / "out"
 FPS = 30
 SR = 44100
 ZOOM_S = 0.9          # seconds per camera move
+XF = 0.7              # cross-fade between scenes, seconds
 FAST = 8              # time-lapse factor for model think time
 FONT = "C\\:/Windows/Fonts/segoeuib.ttf"
 
@@ -33,7 +34,7 @@ def ease(k: float) -> float:
 
 def camera_track(events: list[dict], w: int, h: int):
     """Return f(t) -> (cx, cy, scale), easing between targets set by zoom events."""
-    keys = [(0.0, (w / 2, h / 2, 1.0))]
+    keys = [(0.0, (w / 2, h / 2, 1.0), ZOOM_S)]
     for e in events:
         if e["kind"] != "zoom":
             continue
@@ -43,15 +44,15 @@ def camera_track(events: list[dict], w: int, h: int):
             x, y, bw, bh = e["box"]
             s = max(1.0, min(e["scale"], w / max(bw, 1), h / max(bh, 1)))
             target = (x + bw / 2, y + bh / 2, s)
-        keys.append((e["t"], target))
+        keys.append((e["t"], target, 0.001 if e.get("snap") else ZOOM_S))
 
     def at(t: float):
         cur = keys[0][1]
-        for i, (t0, target) in enumerate(keys[1:], 1):
+        for i, (t0, target, dur) in enumerate(keys[1:], 1):
             if t < t0:
                 break
             prev = cur
-            k = ease((t - t0) / ZOOM_S)
+            k = ease((t - t0) / dur)
             cur = tuple(p + (q - p) * k for p, q in zip(prev, target))
         cx, cy, s = cur
         hw, hh = w / (2 * s), h / (2 * s)
@@ -74,16 +75,32 @@ def fast_spans(events: list[dict]) -> list[tuple[float, float]]:
     return spans
 
 
-def retime(t: float, spans: list[tuple[float, float]]) -> float:
+def cut_spans(events: list[dict]) -> list[tuple[float, float]]:
+    """(cut, cutin) spans in recorded time: page loads between scenes, dropped and replaced by a cross-fade."""
+    spans, start = [], None
+    for e in events:
+        if e["kind"] == "cut":
+            start = e["t"]
+        elif e["kind"] == "cutin" and start is not None:
+            spans.append((start, e["t"]))
+            start = None
+    return spans
+
+
+def retime(t: float, spans: list[tuple[float, float]], cuts: list[tuple[float, float]] = ()) -> float:
     """Recorded time -> time in the cut."""
     out = t
     for a, b in spans:
         if t > a:
             out -= (min(t, b) - a) * (1 - 1 / FAST)
+    for a, b in cuts:
+        if t > a:
+            out -= min(t, b) - a
     return out
 
 
-def render_video(src: Path, dst: Path, events: list[dict], spans: list[tuple[float, float]]) -> float:
+def render_video(src: Path, dst: Path, events: list[dict], spans: list[tuple[float, float]],
+                 cuts: list[tuple[float, float]] = ()) -> float:
     cap = cv2.VideoCapture(str(src))
     w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     cam = camera_track(events, w, h)
@@ -91,18 +108,34 @@ def render_video(src: Path, dst: Path, events: list[dict], spans: list[tuple[flo
                             "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", "medium", "-crf", "18",
                             "-pix_fmt", "yuv420p", str(dst)], stdin=subprocess.PIPE)
     n = kept = 0
+    held, fade_left = None, 0
+    last = None
     while True:
         ok, frame = cap.read()
         if not ok:
             break
         t = n / FPS
         n += 1
+        if any(a <= t < b for a, b in cuts):
+            if held is None:
+                held = last  # the last frame of the outgoing scene
+            continue
+        if held is not None and fade_left == 0:
+            fade_left = int(XF * FPS)
         if any(a <= t < b for a, b in spans) and n % FAST:
             continue  # time-lapse: keep one frame in FAST
         cx, cy, s = cam(t)
         if s > 1.001:
             m = np.float32([[s, 0, w / 2 - s * cx], [0, s, h / 2 - s * cy]])
             frame = cv2.warpAffine(frame, m, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+        last = frame
+        if fade_left and held is not None:
+            k = 1 - fade_left / int(XF * FPS)
+            k = k * k * (3 - 2 * k)
+            frame = cv2.addWeighted(held, 1 - k, frame, k, 0)
+            fade_left -= 1
+            if fade_left == 0:
+                held = None
         enc.stdin.write(frame.tobytes())
         kept += 1
     cap.release()
@@ -234,16 +267,16 @@ def main() -> None:
     cfr = OUT / "cfr.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(OUT / "raw.webm"), "-r", str(FPS), "-c:v", "libx264",
                     "-crf", "14", "-preset", "veryfast", "-an", str(cfr)], check=True)
-    spans = fast_spans(events)
-    print(f"zooming ({len(spans)} time-lapse spans)...")
-    dur = render_video(cfr, OUT / "zoomed.mp4", events, spans)
-    events = [e | {"t": round(retime(e["t"], spans), 3)} for e in events]  # cues follow the cut
+    spans, cuts = fast_spans(events), cut_spans(events)
+    print(f"zooming ({len(spans)} time-lapse spans, {len(cuts)} cross-fades)...")
+    dur = render_video(cfr, OUT / "zoomed.mp4", events, spans, cuts)
+    events = [e | {"t": round(retime(e["t"], spans, cuts), 3)} for e in events]  # cues follow the cut
     print("mixing audio...")
     mix_audio(events, dur, OUT / "audio.wav")
     print("captions and mux...")
     badge = "".join(
         f",drawtext=fontfile='{FONT}':text='8× speed':fontsize=30:fontcolor=0x0B2A21:box=1:boxcolor=0xE0F354@0.95:"
-        f"boxborderw=12|18:x=w-text_w-60:y=50:enable='between(t,{retime(a, spans):.2f},{retime(b, spans):.2f})'"
+        f"boxborderw=12|18:x=w-text_w-60:y=50:enable='between(t,{retime(a, spans, cuts):.2f},{retime(b, spans, cuts):.2f})'"
         for a, b in spans)
     vf = caption_filter(events) + badge + f",fade=t=in:st=0:d=0.6,fade=t=out:st={dur - 1.2:.2f}:d=1.2"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(OUT / "zoomed.mp4"), "-i", str(OUT / "audio.wav"),
